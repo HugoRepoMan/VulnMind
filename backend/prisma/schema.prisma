@@ -1,0 +1,130 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "knowledge"]
+}
+
+// ----------------------------------------------------------------------
+// ESQUEMA: PUBLIC (Datos operativos, roles, usuarios, hallazgos crudos)
+// ----------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(AUDITOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  projects  Project[]
+  auditLogs AuditLog[]
+
+  @@schema("public")
+}
+
+enum Role {
+  ADMIN
+  AUDITOR
+  VIEWER
+  @@schema("public")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  assets      Asset[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model Asset {
+  id        String    @id @default(uuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id])
+  name      String
+  ip        String?
+  type      String
+  riskScore Float     @default(0.0) // Puntuación calculada por el Engine
+  findings  Finding[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@schema("public")
+}
+
+model Finding {
+  id           String   @id @default(uuid())
+  assetId      String
+  asset        Asset    @relation(fields: [assetId], references: [id])
+  rawData      Json     // Datos en crudo recolectados por el auditor
+  processed    Boolean  @default(false)
+  
+  // Relación opcional con el análisis procesado en el esquema de conocimiento
+  knowledgeId  String?  @unique
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@schema("public")
+}
+
+// ----------------------------------------------------------------------
+// ESQUEMA: KNOWLEDGE (Base de conocimiento y resultados del motor)
+// ----------------------------------------------------------------------
+
+model KnowledgeRule {
+  id            String   @id @default(uuid())
+  type          String   // e.g., "OS_VULNERABILITY", "PORT_SERVICE"
+  condition     Json     // Estructura de condición
+  baseRiskScore Float
+  mitreIds      String[]
+  owaspIds      String[]
+  recommendation String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@schema("knowledge")
+}
+
+model FindingAnalysis {
+  id               String   @id @default(uuid())
+  // Relacionado con Finding en schema public
+  findingId        String   @unique
+  inferredOs       String?
+  inferredService  String?
+  inferredVersion  String?
+  calculatedRisk   Float
+  matchedRules     Json     // Reglas que hicieron match
+  mitreTechniques  String[]
+  owaspCategories  String[]
+  recommendations  String[]
+  timelineEvents   Json?
+  explanation      String?  // Explicabilidad de la decisión de riesgo
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@schema("knowledge")
+}
