@@ -7,122 +7,214 @@ datasource db {
   schemas  = ["public", "knowledge"]
 }
 
-// ----------------------------------------------------------------------
-// ESQUEMA: PUBLIC (Datos operativos, roles, usuarios, hallazgos crudos)
-// ----------------------------------------------------------------------
-
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role     @default(AUDITOR)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  projects  Project[]
-  auditLogs AuditLog[]
-
-  @@schema("public")
-}
-
 enum Role {
   ADMIN
   AUDITOR
   VIEWER
+
+  @@schema("public")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@schema("public")
+}
+
+enum AuditStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@schema("public")
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  REMOVED
+
+  @@schema("public")
+}
+
+enum FindingStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  ACCEPTED
+  FALSE_POSITIVE
+
+  @@schema("public")
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@schema("public")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(AUDITOR)
+  projects     Project[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([role])
   @@schema("public")
 }
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String        @id @default(uuid())
   name        String
   description String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  assets      Asset[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      ProjectStatus @default(ACTIVE)
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  audits      Audit[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
+  @@index([ownerId])
+  @@index([status])
+  @@schema("public")
+}
+
+model Audit {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  status      AuditStatus @default(DRAFT)
+  startedAt   DateTime?
+  completedAt DateTime?
+  assets      Asset[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
   @@schema("public")
 }
 
 model Asset {
-  id        String    @id @default(uuid())
-  projectId String
-  project   Project   @relation(fields: [projectId], references: [id])
+  id        String      @id @default(uuid())
+  auditId   String
+  audit     Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
   name      String
   ip        String?
-  type      String
-  riskScore Float     @default(0.0) // Puntuación calculada por el Engine
+  type      String      @default("host")
+  status    AssetStatus @default(ACTIVE)
+  riskScore Float       @default(0)
   findings  Finding[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
+  @@unique([auditId, name])
+  @@index([auditId])
+  @@index([status])
+  @@index([riskScore])
   @@schema("public")
 }
 
 model Finding {
-  id           String   @id @default(uuid())
-  assetId      String
-  asset        Asset    @relation(fields: [assetId], references: [id])
-  rawData      Json     // Datos en crudo recolectados por el auditor
-  processed    Boolean  @default(false)
-  
-  // Relación opcional con el análisis procesado en el esquema de conocimiento
-  knowledgeId  String?  @unique
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String           @id @default(uuid())
+  assetId       String
+  asset         Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  rawData       Json
+  vulnerability String?
+  port          Int?
+  status        FindingStatus    @default(OPEN)
+  severity      Severity         @default(LOW)
+  riskScore     Float            @default(0)
+  processedAt   DateTime?
+  analysis      FindingAnalysis?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
+  @@index([assetId])
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
   @@schema("public")
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  action    String
-  entityId  String?
-  details   Json?
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId    String?
+  audit      Audit?   @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
 
+  @@index([userId])
+  @@index([projectId])
+  @@index([auditId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
   @@schema("public")
 }
 
-// ----------------------------------------------------------------------
-// ESQUEMA: KNOWLEDGE (Base de conocimiento y resultados del motor)
-// ----------------------------------------------------------------------
-
 model KnowledgeRule {
-  id            String   @id @default(uuid())
-  type          String   // e.g., "OS_VULNERABILITY", "PORT_SERVICE"
-  condition     Json     // Estructura de condición
-  baseRiskScore Float
-  mitreIds      String[]
-  owaspIds      String[]
+  id             String            @id @default(uuid())
+  name           String
+  type           String
+  condition      Json
+  baseRiskScore  Float
+  mitreIds       String[]          @default([])
+  owaspIds       String[]          @default([])
+  cweIds         String[]          @default([])
   recommendation String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  priority       Int               @default(0)
+  active         Boolean           @default(true)
+  analyses       FindingAnalysis[] @relation("AnalysisRules")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
+  @@index([type, active])
+  @@index([priority])
   @@schema("knowledge")
 }
 
 model FindingAnalysis {
-  id               String   @id @default(uuid())
-  // Relacionado con Finding en schema public
-  findingId        String   @unique
-  inferredOs       String?
-  inferredService  String?
-  inferredVersion  String?
-  calculatedRisk   Float
-  matchedRules     Json     // Reglas que hicieron match
-  mitreTechniques  String[]
-  owaspCategories  String[]
-  recommendations  String[]
-  timelineEvents   Json?
-  explanation      String?  // Explicabilidad de la decisión de riesgo
+  id              String          @id @default(uuid())
+  findingId       String          @unique
+  finding         Finding         @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  inferredOs      String?
+  inferredService String?
+  inferredVersion String?
+  calculatedRisk  Float
+  matchedRules    Json
+  rules           KnowledgeRule[] @relation("AnalysisRules")
+  mitreTechniques String[]        @default([])
+  owaspCategories String[]        @default([])
+  cweIds          String[]        @default([])
+  recommendations String[]        @default([])
+  correlation     Json?
+  timelineEvents  Json?
+  explanation     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
+  @@index([calculatedRisk])
+  @@index([createdAt])
   @@schema("knowledge")
 }

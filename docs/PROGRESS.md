@@ -51,9 +51,55 @@ Completado:
 - La eliminación accidental del volumen ocurrió cuando estaba recién creado y
   no contenía datos importantes.
 
+## FASE 2 — PostgreSQL y Prisma reales
+
+Estado: completada.
+
+Completado:
+
+- Reemplazado el modelo inicial por la jerarquía relacional
+  `Project -> Audit -> Asset -> Finding`, con estados, timestamps, claves
+  foráneas, restricciones e índices.
+- Conservado Prisma MultiSchema con datos operativos en `public` y reglas y
+  análisis en `knowledge`.
+- Añadida una instancia reutilizable de Prisma Client 7 con el adaptador oficial
+  de PostgreSQL.
+- Añadidos repositorios Prisma para hallazgos, métricas del dashboard y reglas de
+  conocimiento.
+- Eliminado el uso de `memory.js` de todas las rutas y componentes del motor en
+  producción. El archivo queda disponible únicamente para pruebas unitarias
+  aisladas.
+- `POST /api/findings` persiste atómicamente `Finding`, `FindingAnalysis`, riesgo,
+  recomendaciones, explicación, reglas relacionadas y `AuditLog`.
+- El Motor Inteligente obtiene `KnowledgeRule` desde PostgreSQL y consulta
+  hallazgos previos para la correlación.
+- `GET /api/dashboard/stats` y `GET /api/findings/recent` consultan datos reales
+  desde PostgreSQL manteniendo el contrato existente del frontend.
+- Añadida migración versionada
+  `20260723174546_phase_2_postgresql_persistence`.
+- Añadido seed idempotente con usuario, proyecto, auditoría, tres activos y dos
+  reglas mínimas de desarrollo, sin atribuir identificadores oficiales no
+  verificados.
+- Añadido manejo específico de errores conocidos y de inicialización de Prisma.
+- Añadidas 4 pruebas de integración API contra PostgreSQL que verifican
+  hallazgo, análisis, regla relacionada, riesgo del activo, log de auditoría,
+  dashboard, recientes y validación sin persistencia.
+- Backend configurado para generar Prisma Client al construir la imagen y
+  ejecutar `migrate deploy` y el seed idempotente antes de iniciar.
+- Persistencia comprobada tras reiniciar los contenedores PostgreSQL y backend
+  sin eliminar el volumen: el hallazgo creado siguió disponible y las métricas
+  conservaron sus valores.
+
+Verificación final:
+
+- Prisma format, validate y generate correctos.
+- Backend: lint/build correctos y 4/4 pruebas de integración correctas.
+- Frontend: lint correcto con 3 advertencias no bloqueantes y build PWA correcto.
+- Docker Compose: PostgreSQL `healthy`, backend y frontend activos; endpoints de
+  salud, dashboard y recientes correctos después del reinicio.
+
 ## Fases siguientes
 
-- FASE 2: PostgreSQL, Prisma MultiSchema, migraciones, seeds y repositorios.
 - FASE 3: autenticación, sesiones JWT y RBAC.
 - FASE 4: CRUD y relaciones operativas completas.
 - FASE 5: base de conocimiento persistente y administración.

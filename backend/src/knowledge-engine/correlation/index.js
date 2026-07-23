@@ -8,15 +8,19 @@ class CorrelationEngine {
   async correlate(assetId, inference, rules) {
     console.log(`[CorrelationEngine] Buscando relaciones laterales y de escalamiento para Activo ${assetId}...`);
     
-    // Ejemplo: Si encontramos un puerto 21 (FTP) abierto y en el mismo activo
-    // ya había un puerto 22 (SSH) con credenciales débiles, correlacionamos
-    // para indicar una posible ruta de ataque lateral.
-    
+    const previousFindings = await findPreviousFindingsForAsset(assetId);
+
     return {
-      correlatedEvents: [],
+      correlatedEvents: previousFindings.map(({ id, port, vulnerability, riskScore }) => ({
+        findingId: id,
+        port,
+        vulnerability,
+        riskScore
+      })),
       escalationRisk: false
     };
   }
 }
 
 export default new CorrelationEngine();
+import { findPreviousFindingsForAsset } from '../../repositories/finding.repository.js';

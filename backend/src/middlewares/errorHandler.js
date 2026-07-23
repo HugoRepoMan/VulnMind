@@ -1,4 +1,5 @@
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 
 export const errorHandler = (err, req, res, next) => {
   console.error('[Error]:', err);
@@ -11,16 +12,29 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  if (err.code && typeof err.code === 'string' && err.code.startsWith('P')) {
-    return res.status(400).json({
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    const statusByCode = {
+      P2002: 409,
+      P2003: 409,
+      P2025: 404
+    };
+
+    return res.status(statusByCode[err.code] ?? 400).json({
       success: false,
-      message: 'Database Error',
+      message: 'Database operation failed',
       code: err.code
     });
   }
 
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database unavailable'
+    });
+  }
+
+  const statusCode = err.statusCode ?? 500;
+  const message = err.statusCode ? err.message : 'Internal Server Error';
 
   res.status(statusCode).json({
     success: false,
