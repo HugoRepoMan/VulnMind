@@ -98,9 +98,40 @@ Verificación final:
 - Docker Compose: PostgreSQL `healthy`, backend y frontend activos; endpoints de
   salud, dashboard y recientes correctos después del reinicio.
 
+## FASE 3 — Autenticación y roles
+
+Estado: completada.
+
+Completado:
+
+- Implementado `POST /api/auth/login` con validación Zod, búsqueda de usuario en
+  PostgreSQL y verificación de contraseña mediante bcrypt.
+- Implementado `GET /api/auth/me` para restaurar y validar la sesión activa.
+- Añadidos JWT firmados con expiración de 8 horas, issuer y audience validados.
+- `JWT_SECRET` es obligatorio y se inyecta mediante variable de entorno; el valor
+  local no se almacena en Git.
+- Añadido middleware de autenticación Bearer y respuestas 401 para tokens
+  ausentes, inválidos o expirados.
+- Añadido RBAC para `ADMIN`, `AUDITOR` y `VIEWER`: los tres roles pueden consultar
+  dashboard y hallazgos; sólo `ADMIN` y `AUDITOR` pueden procesar hallazgos.
+- Los hallazgos nuevos registran al usuario autenticado en `AuditLog` y cada
+  inicio de sesión correcto crea un evento `LOGIN_SUCCESS`.
+- Frontend conectado al login real, persistencia de sesión, interceptor Bearer,
+  cierre de sesión, rutas protegidas y ocultamiento de acciones de auditoría para
+  `VIEWER`.
+- Añadidas pruebas de integración para login, sesión, 401, 403, permisos de
+  escritura y atribución del log de auditoría.
+
+Verificación final:
+
+- Backend: lint/build correctos y 7/7 pruebas de integración correctas.
+- Frontend: lint correcto con 3 advertencias no bloqueantes y build PWA correcto.
+- Docker Compose válido con secreto local ignorado por Git.
+- Flujo real en contenedores verificado: login 200, sesión 200 con rol `ADMIN`,
+  dashboard 200 y hallazgos recientes 200.
+
 ## Fases siguientes
 
-- FASE 3: autenticación, sesiones JWT y RBAC.
 - FASE 4: CRUD y relaciones operativas completas.
 - FASE 5: base de conocimiento persistente y administración.
 - FASE 6: motor inteligente persistente, idempotente y explicable.

@@ -1,11 +1,31 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout.jsx';
 import { Dashboard, Login, Audits } from '../pages/index.js';
+import { useAppStore } from '@/store';
+
+function ProtectedRoute({ roles, children }) {
+  const user = useAppStore((state) => state.user);
+  const token = useAppStore((state) => state.token);
+
+  if (!user || !token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <RootLayout />,
+    element: (
+      <ProtectedRoute>
+        <RootLayout />
+      </ProtectedRoute>
+    ),
     errorElement: <div className="p-8 text-center text-red-500">Ruta no encontrada (Error 404)</div>,
     children: [
       {
@@ -14,7 +34,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'audits',
-        element: <Audits />
+        element: (
+          <ProtectedRoute roles={['ADMIN', 'AUDITOR']}>
+            <Audits />
+          </ProtectedRoute>
+        )
       },
       {
         path: 'settings',

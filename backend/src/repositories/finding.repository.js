@@ -77,6 +77,7 @@ export const createFindingWithAnalysis = async (findingData, engineResult) =>
 
     await tx.auditLog.create({
       data: {
+        userId: findingData.actorUserId,
         projectId: asset.audit.projectId,
         auditId: asset.auditId,
         action: 'FINDING_PROCESSED',

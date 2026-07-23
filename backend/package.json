@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "NODE_ENV=test DATABASE_URL=postgresql://vulnmind:vulnmind_password@localhost:5432/vulnmind_db?schema=public node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test": "NODE_ENV=test JWT_SECRET=vulnmind-integration-test-secret DATABASE_URL=postgresql://vulnmind:vulnmind_password@localhost:5432/vulnmind_db?schema=public node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "build": "node --check src/index.js",

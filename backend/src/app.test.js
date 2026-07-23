@@ -1,9 +1,11 @@
 import request from 'supertest';
+import bcrypt from 'bcryptjs';
 import app from './app.js';
 import { prisma, disconnectPrisma } from './database/prisma.js';
 
 const ids = {
   user: '10000000-0000-4000-8000-000000000001',
+  viewer: '10000000-0000-4000-8000-000000000004',
   project: '10000000-0000-4000-8000-000000000002',
   audit: '10000000-0000-4000-8000-000000000003',
   asset: 'integration-asset',
@@ -11,15 +13,29 @@ const ids = {
 };
 
 describe('VulnMind PostgreSQL API integration', () => {
+  let auditorToken;
+  let viewerToken;
+
   beforeAll(async () => {
+    const passwordHash = await bcrypt.hash('integration-password', 10);
     await prisma.user.upsert({
       where: { id: ids.user },
-      update: {},
+      update: { passwordHash },
       create: {
         id: ids.user,
         email: 'integration@vulnmind.local',
-        passwordHash: 'not-used-in-phase-2',
+        passwordHash,
         role: 'AUDITOR'
+      }
+    });
+    await prisma.user.upsert({
+      where: { id: ids.viewer },
+      update: { passwordHash },
+      create: {
+        id: ids.viewer,
+        email: 'viewer-integration@vulnmind.local',
+        passwordHash,
+        role: 'VIEWER'
       }
     });
     await prisma.project.upsert({
@@ -59,12 +75,25 @@ describe('VulnMind PostgreSQL API integration', () => {
         recommendation: 'Cerrar el servicio de prueba'
       }
     });
+
+    const [auditorLogin, viewerLogin] = await Promise.all([
+      request(app).post('/api/auth/login').send({
+        email: 'integration@vulnmind.local',
+        password: 'integration-password'
+      }),
+      request(app).post('/api/auth/login').send({
+        email: 'viewer-integration@vulnmind.local',
+        password: 'integration-password'
+      })
+    ]);
+    auditorToken = auditorLogin.body.data.token;
+    viewerToken = viewerLogin.body.data.token;
   });
 
   afterAll(async () => {
     await prisma.project.deleteMany({ where: { id: ids.project } });
     await prisma.knowledgeRule.deleteMany({ where: { id: ids.rule } });
-    await prisma.user.deleteMany({ where: { id: ids.user } });
+    await prisma.user.deleteMany({ where: { id: { in: [ids.user, ids.viewer] } } });
     await disconnectPrisma();
   });
 
@@ -75,9 +104,38 @@ describe('VulnMind PostgreSQL API integration', () => {
     expect(response.body.status).toBe('OK');
   });
 
+  test('authenticates a valid user and restores its session', async () => {
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${auditorToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.user).toMatchObject({
+      email: 'integration@vulnmind.local',
+      role: 'AUDITOR'
+    });
+    expect(response.body.data.user.passwordHash).toBeUndefined();
+  });
+
+  test('rejects protected requests without a token', async () => {
+    const response = await request(app).get('/api/dashboard/stats');
+
+    expect(response.status).toBe(401);
+  });
+
+  test('prevents a viewer from creating findings', async () => {
+    const response = await request(app)
+      .post('/api/findings')
+      .set('Authorization', `Bearer ${viewerToken}`)
+      .send({ assetId: ids.asset, rawData: { port: 2121 } });
+
+    expect(response.status).toBe(403);
+  });
+
   test('persists a finding, its analysis, risk and audit log', async () => {
     const response = await request(app)
       .post('/api/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
       .send({
         assetId: ids.asset,
         rawData: {
@@ -106,12 +164,17 @@ describe('VulnMind PostgreSQL API integration', () => {
     expect(persisted.analysis.rules.map(({ id }) => id)).toContain(ids.rule);
     expect(persisted.asset.riskScore).toBe(55);
     expect(auditLog.action).toBe('FINDING_PROCESSED');
+    expect(auditLog.userId).toBe(ids.user);
   });
 
   test('reads dashboard metrics and recent findings from PostgreSQL', async () => {
     const [statsResponse, recentResponse] = await Promise.all([
-      request(app).get('/api/dashboard/stats'),
-      request(app).get('/api/findings/recent')
+      request(app)
+        .get('/api/dashboard/stats')
+        .set('Authorization', `Bearer ${viewerToken}`),
+      request(app)
+        .get('/api/findings/recent')
+        .set('Authorization', `Bearer ${viewerToken}`)
     ]);
 
     expect(statsResponse.status).toBe(200);
@@ -133,6 +196,7 @@ describe('VulnMind PostgreSQL API integration', () => {
     const countBefore = await prisma.finding.count({ where: { assetId: ids.asset } });
     const response = await request(app)
       .post('/api/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
       .send({ assetId: '', rawData: {} });
     const countAfter = await prisma.finding.count({ where: { assetId: ids.asset } });
 

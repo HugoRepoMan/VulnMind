@@ -19,7 +19,10 @@ export const processFinding = async (req, res, next) => {
     );
     
     // 3. Guardar atómicamente el hallazgo, análisis, riesgo y auditoría.
-    const savedFinding = await createFindingWithAnalysis(validatedData, engineResult);
+    const savedFinding = await createFindingWithAnalysis(
+      { ...validatedData, actorUserId: req.user.id },
+      engineResult
+    );
     
     // 4. Responder al cliente inmediatamente
     res.status(202).json({

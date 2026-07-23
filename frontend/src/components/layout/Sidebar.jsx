@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Shield, Activity, FileText, Settings, User } from 'lucide-react';
+import { useAppStore } from '@/store';
 
 export default function Sidebar() {
+  const user = useAppStore((state) => state.user);
+  const canAudit = ['ADMIN', 'AUDITOR'].includes(user?.role);
+
   return (
     <aside className="w-64 border-r bg-card hidden md:block">
       <div className="h-full flex flex-col">
@@ -15,10 +19,12 @@ export default function Sidebar() {
             <Activity className="h-4 w-4" />
             <span className="font-medium">Dashboard</span>
           </Link>
-          <Link to="/audits" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
-            <FileText className="h-4 w-4" />
-            <span className="font-medium">Auditorías</span>
-          </Link>
+          {canAudit && (
+            <Link to="/audits" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
+              <FileText className="h-4 w-4" />
+              <span className="font-medium">Auditorías</span>
+            </Link>
+          )}
           <Link to="/settings" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
             <Settings className="h-4 w-4" />
             <span className="font-medium">Configuración</span>
@@ -31,8 +37,8 @@ export default function Sidebar() {
               <User className="h-4 w-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Auditor Jefe</span>
-              <span className="text-xs text-muted-foreground">SOC Team</span>
+              <span className="text-sm font-medium">{user?.email}</span>
+              <span className="text-xs text-muted-foreground">{user?.role}</span>
             </div>
           </div>
         </div>

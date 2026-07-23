@@ -26,6 +26,7 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://vulnmind:vulnmind_password@postgres:5432/vulnmind_db?schema=public
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - NODE_ENV=development
     volumes:
       - ./backend:/app
