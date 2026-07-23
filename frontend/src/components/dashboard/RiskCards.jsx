@@ -1,33 +1,44 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, ShieldAlert, Activity, CheckCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { dashboardService } from '@/services/api';
 
 export default function RiskCards() {
-  const stats = [
+  const { data: stats, isLoading, isError } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: dashboardService.getStats,
+    refetchInterval: 10000 // Refresca cada 10s
+  });
+
+  if (isLoading) return <div className="text-muted-foreground animate-pulse">Cargando métricas...</div>;
+  if (isError) return <div className="text-destructive">Error cargando métricas</div>;
+
+  const cardsData = [
     {
       title: "Riesgo Global",
-      value: "85/100",
-      description: "+12% desde última auditoría",
+      value: `${stats?.globalRisk || 0}/100`,
+      description: "Calculado por el Motor",
       icon: ShieldAlert,
-      alert: true,
+      alert: (stats?.globalRisk || 0) > 50,
     },
     {
       title: "Hallazgos Críticos",
-      value: "4",
-      description: "2 requieren atención inmediata",
+      value: stats?.criticalFindings || 0,
+      description: "Requieren atención inmediata",
       icon: AlertTriangle,
-      alert: true,
+      alert: (stats?.criticalFindings || 0) > 0,
     },
     {
       title: "Activos Analizados",
-      value: "12",
-      description: "3 servidores, 9 endpoints",
+      value: stats?.totalAssets || 0,
+      description: "En el inventario",
       icon: Activity,
       alert: false,
     },
     {
       title: "Reglas Satisfechas",
-      value: "156",
-      description: "Cobertura MITRE ATT&CK: 42%",
+      value: stats?.rulesMatched || 0,
+      description: "Cobertura de base de conocimiento",
       icon: CheckCircle,
       alert: false,
     }
@@ -35,7 +46,7 @@ export default function RiskCards() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat, i) => (
+      {cardsData.map((stat, i) => (
         <Card key={i} className={stat.alert ? "border-destructive/50 shadow-sm" : "shadow-sm"}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">

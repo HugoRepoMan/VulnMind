@@ -1,36 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-const findings = [
-  {
-    id: 'F-104',
-    asset: '192.168.1.10',
-    title: 'Vulnerabilidad Log4j Detectada',
-    severity: 'Critical',
-    time: 'Hace 2 horas',
-  },
-  {
-    id: 'F-103',
-    asset: 'db-server-01',
-    title: 'Puerto 3306 Expuesto',
-    severity: 'High',
-    time: 'Hace 5 horas',
-  },
-  {
-    id: 'F-102',
-    asset: 'web-prod',
-    title: 'Headers HTTP Inseguros',
-    severity: 'Medium',
-    time: 'Ayer',
-  },
-  {
-    id: 'F-101',
-    asset: '10.0.0.5',
-    title: 'Servicio FTP Anónimo Habilitado',
-    severity: 'High',
-    time: 'Ayer',
-  },
-];
+import { useQuery } from '@tanstack/react-query';
+import { dashboardService } from '@/services/api';
 
 const severityColors = {
   'Critical': 'bg-red-600 hover:bg-red-700',
@@ -40,6 +11,12 @@ const severityColors = {
 };
 
 export default function RecentFindings() {
+  const { data: findings = [], isLoading } = useQuery({
+    queryKey: ['recentFindings'],
+    queryFn: dashboardService.getRecentFindings,
+    refetchInterval: 10000
+  });
+
   return (
     <Card className="col-span-1 lg:col-span-2">
       <CardHeader>
@@ -47,21 +24,29 @@ export default function RecentFindings() {
         <CardDescription>Últimas vulnerabilidades detectadas por el motor inteligente</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {findings.map((finding) => (
-            <div key={finding.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
-              <div className="space-y-1">
-                <p className="text-sm font-medium leading-none">{finding.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  Activo: {finding.asset} • {finding.time}
-                </p>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground animate-pulse">Cargando hallazgos...</div>
+        ) : findings.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No hay hallazgos registrados.</div>
+        ) : (
+          <div className="space-y-4">
+            {findings.map((finding) => (
+              <div key={finding.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {finding.vulnerability || `Puerto ${finding.port} Expuesto`}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Activo: {finding.assetName} • {new Date(finding.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+                <Badge className={severityColors[finding.severity]}>
+                  {finding.severity}
+                </Badge>
               </div>
-              <Badge className={severityColors[finding.severity]}>
-                {finding.severity}
-              </Badge>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
