@@ -29,41 +29,35 @@ class VulnMindEngine {
     // 3. Scoring Inicial
     const riskScore = await ScoringEngine.calculateRisk(assetId, matchedRules);
 
-    // 4. Delegar al pipeline asíncrono (Correlation, Recommendation, Timeline, Explainability)
-    // No usamos 'await' para no bloquear la respuesta HTTP
-    this.triggerAsyncPipeline(assetId, inferenceResult, matchedRules, riskScore);
+    // 4. Completar el pipeline antes de responder para no perder resultados.
+    const pipelineResult = await this.completePipeline(
+      assetId,
+      inferenceResult,
+      matchedRules,
+      riskScore
+    );
 
     return {
       success: true,
       riskScore,
+      calculatedRisk: riskScore,
       inferenceResult,
-      matchedRules
+      matchedRules,
+      ...pipelineResult
     };
   }
 
-  async triggerAsyncPipeline(assetId, inference, rules, riskScore) {
-    console.log(`[VulnMindEngine] Disparando Pipeline Asíncrono en segundo plano para Activo ${assetId}`);
-    
-    try {
-      // 1. Correlación
-      const correlation = await CorrelationEngine.correlate(assetId, inference, rules);
-      
-      // 2. Recomendaciones
-      const recommendations = await RecommendationsEngine.generate(rules, correlation);
-      
-      // 3. Explicabilidad
-      const explanation = await ExplainabilityEngine.generateExplanation(riskScore, rules, correlation);
-      
-      // 4. Guardar en Base de Datos (Knowledge Schema)
-      console.log(`[VulnMindEngine] Pipeline asíncrono completado para Activo ${assetId}.`);
-      console.log(`Explicación generada: ${explanation}`);
-      
-      // Aquí haríamos el insert final en la BD con Prisma:
-      // await prisma.findingAnalysis.create({ ... })
-      
-    } catch (error) {
-      console.error(`[VulnMindEngine] Error en pipeline asíncrono:`, error);
-    }
+  async completePipeline(assetId, inference, rules, riskScore) {
+    const correlation = await CorrelationEngine.correlate(assetId, inference, rules);
+    const recommendations = await RecommendationsEngine.generate(rules, correlation);
+    const explanation = await ExplainabilityEngine.generateExplanation(
+      riskScore,
+      rules,
+      correlation
+    );
+
+    console.log(`[VulnMindEngine] Pipeline completado para Activo ${assetId}.`);
+    return { correlation, recommendations, explanation };
   }
 }
 

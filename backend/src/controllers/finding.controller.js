@@ -3,8 +3,8 @@ import { store } from '../store/memory.js';
 import { z } from 'zod';
 
 const createFindingSchema = z.object({
-  assetId: z.string(),
-  rawData: z.record(z.any())
+  assetId: z.string().trim().min(1),
+  rawData: z.record(z.string(), z.unknown())
 });
 
 export const processFinding = async (req, res, next) => {

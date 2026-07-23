@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 export const store = {
   findings: [],
@@ -10,7 +10,7 @@ export const store = {
   
   addFinding(findingData, engineResult) {
     const newFinding = {
-      id: uuidv4(),
+      id: randomUUID(),
       assetId: findingData.assetId,
       assetName: findingData.rawData.assetName || 'Activo Desconocido',
       port: findingData.rawData.port,

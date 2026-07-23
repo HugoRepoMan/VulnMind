@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"No tests yet\" && exit 0",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build": "echo \"No build step for JS\" && exit 0",
+    "build": "node --check src/index.js",
     "lint": "eslint ."
   },
   "keywords": [],
