@@ -4,14 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "NODE_ENV=test JWT_SECRET=vulnmind-integration-test-secret DATABASE_URL=postgresql://vulnmind:vulnmind_password@localhost:5432/vulnmind_db?schema=public node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test": "node --experimental-vm-modules scripts/run-tests.js",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "build": "node --check src/index.js",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "vapid:generate": "web-push generate-vapid-keys"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +29,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "pg": "^8.22.0",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {

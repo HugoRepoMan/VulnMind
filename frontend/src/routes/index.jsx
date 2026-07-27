@@ -1,7 +1,19 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout.jsx';
-import { Dashboard, Login, Audits, Knowledge } from '../pages/index.js';
 import { useAppStore } from '@/store';
+
+const Dashboard = lazy(() => import('../pages/Dashboard/index.jsx'));
+const Login = lazy(() => import('../pages/Login/index.jsx'));
+const Audits = lazy(() => import('../pages/Audits/index.jsx'));
+const Knowledge = lazy(() => import('../pages/Knowledge/index.jsx'));
+const Settings = lazy(() => import('../pages/Settings/index.jsx'));
+
+const page = (component) => (
+  <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Cargando…</div>}>
+    {component}
+  </Suspense>
+);
 
 function ProtectedRoute({ roles, children }) {
   const user = useAppStore((state) => state.user);
@@ -18,7 +30,7 @@ function ProtectedRoute({ roles, children }) {
   return children;
 }
 
-export const router = createBrowserRouter([
+const router = createBrowserRouter([
   {
     path: '/',
     element: (
@@ -30,23 +42,23 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard />
+        element: page(<Dashboard />)
       },
       {
         path: 'audits',
         element: (
           <ProtectedRoute roles={['ADMIN', 'AUDITOR']}>
-            <Audits />
+            {page(<Audits />)}
           </ProtectedRoute>
         )
       },
       {
         path: 'settings',
-        element: <div className="p-8">Configuración (Próximamente)</div>
+        element: page(<Settings />)
       },
       {
         path: 'knowledge',
-        element: <Knowledge />
+        element: page(<Knowledge />)
       },
       {
         path: '*',
@@ -56,7 +68,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/login',
-    element: <Login />
+    element: page(<Login />)
   }
 ]);
 

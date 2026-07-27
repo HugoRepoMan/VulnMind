@@ -41,12 +41,12 @@ export const authService = {
 };
 
 export const dashboardService = {
-  getStats: async () => {
-    const response = await api.get('/dashboard/stats');
+  getStats: async (params = {}) => {
+    const response = await api.get('/dashboard/stats', { params });
     return response.data.data;
   },
-  getRecentFindings: async () => {
-    const response = await api.get('/findings/recent');
+  getRecentFindings: async (params = {}) => {
+    const response = await api.get('/findings/recent', { params });
     return response.data.data;
   }
 };
@@ -57,10 +57,18 @@ export const findingsService = {
     return response.data.data;
   },
   createFinding: async ({ idempotencyKey = crypto.randomUUID(), ...payload }) => {
-    const response = await api.post('/findings', payload, {
-      headers: { 'Idempotency-Key': idempotencyKey }
-    });
-    return response.data.data;
+    try {
+      const response = await api.post('/findings', payload, {
+        headers: { 'Idempotency-Key': idempotencyKey }
+      });
+      return response.data.data;
+    } catch (error) {
+      const retryable = !error.response || [502, 503, 504].includes(error.response.status);
+      if (!retryable) throw error;
+      const { enqueueFinding } = await import('@/services/offline');
+      const queued = await enqueueFinding({ payload, idempotencyKey });
+      return { offline: true, queueId: queued.id };
+    }
   },
   updateFinding: async ({ id, ...payload }) => {
     const response = await api.patch(`/findings/${id}`, payload);
@@ -138,6 +146,59 @@ export const knowledgeService = {
   },
   deleteRule: async (id) => {
     const response = await api.delete(`/knowledge/rules/${id}`);
+    return response.data.data;
+  }
+};
+
+export const importService = {
+  importFindings: async ({ file, format, auditId }) => {
+    const content = await file.text();
+    const response = await api.post('/imports/findings', {
+      auditId,
+      format,
+      filename: file.name,
+      content
+    });
+    return response.data.data;
+  }
+};
+
+const filenameFromDisposition = (disposition, fallback) =>
+  disposition?.match(/filename="?([^"]+)"?/i)?.[1] || fallback;
+
+export const exportService = {
+  downloadFindings: async (format, params = {}) => {
+    const response = await api.get('/exports/findings', {
+      params: { ...params, format },
+      responseType: 'blob'
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filenameFromDisposition(
+      response.headers['content-disposition'],
+      `vulnmind-findings.${format}`
+    );
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+};
+
+export const notificationService = {
+  getConfiguration: async () => {
+    const response = await api.get('/notifications/configuration');
+    return response.data.data;
+  },
+  subscribe: async (subscription) => {
+    const response = await api.post('/notifications/subscriptions', subscription);
+    return response.data.data;
+  },
+  unsubscribe: async (endpoint) => {
+    const response = await api.delete('/notifications/subscriptions', {
+      data: { endpoint }
+    });
     return response.data.data;
   }
 };

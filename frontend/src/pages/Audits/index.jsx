@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, FolderKanban, PlusCircle, Server, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, FolderKanban, PlusCircle, Server, ShieldCheck, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { findingsService, operationsService } from '@/services/api';
+import { findingsService, importService, operationsService } from '@/services/api';
+import {
+  clearFindingDraft,
+  loadFindingDraft,
+  saveFindingDraft
+} from '@/services/offline';
 
 const selectClass = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 const emptyList = [];
@@ -24,6 +29,9 @@ export default function Audits() {
   const [auditName, setAuditName] = useState('');
   const [assetForm, setAssetForm] = useState({ name: '', ip: '' });
   const [findingForm, setFindingForm] = useState({ assetId: '', port: '', vulnerability: '' });
+  const [draftReady, setDraftReady] = useState(false);
+  const [importForm, setImportForm] = useState({ format: 'nmap', file: null });
+  const [importSummary, setImportSummary] = useState(null);
 
   const projectsQuery = useQuery({
     queryKey: ['projects'],
@@ -60,6 +68,19 @@ export default function Audits() {
     }
   }, [assets, findingForm.assetId]);
 
+  useEffect(() => {
+    loadFindingDraft().then((draft) => {
+      if (draft) setFindingForm((current) => ({ ...current, ...draft }));
+      setDraftReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return undefined;
+    const timeout = window.setTimeout(() => saveFindingDraft(findingForm), 300);
+    return () => window.clearTimeout(timeout);
+  }, [draftReady, findingForm]);
+
   const showSuccess = (message) => {
     setNotice(message);
     window.setTimeout(() => setNotice(''), 3500);
@@ -93,18 +114,32 @@ export default function Audits() {
   });
   const createFinding = useMutation({
     mutationFn: findingsService.createFinding,
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['assets', auditId] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recentFindings'] });
       setFindingForm((current) => ({ ...current, port: '', vulnerability: '' }));
-      showSuccess('Hallazgo procesado por el motor inteligente.');
+      clearFindingDraft();
+      showSuccess(result.offline
+        ? 'Sin conexión: el hallazgo quedó guardado para sincronizar.'
+        : 'Hallazgo procesado por el motor inteligente.');
+    }
+  });
+  const importFindings = useMutation({
+    mutationFn: importService.importFindings,
+    onSuccess: (summary) => {
+      setImportSummary(summary);
+      queryClient.invalidateQueries({ queryKey: ['assets', auditId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['recentFindings'] });
+      showSuccess('Importación finalizada.');
     }
   });
 
   const currentError =
     projectsQuery.error || auditsQuery.error || assetsQuery.error ||
-    createProject.error || createAudit.error || createAsset.error || createFinding.error;
+    createProject.error || createAudit.error || createAsset.error || createFinding.error ||
+    importFindings.error;
 
   return (
     <div className="space-y-6">
@@ -262,6 +297,69 @@ export default function Audits() {
               <PlusCircle /> {createFinding.isPending ? 'Procesando…' : 'Procesar'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Importar hallazgos</CardTitle>
+          <CardDescription>
+            Carga Nmap XML, CSV o JSON (máximo 5 MB y 1.000 registros). Los activos se asocian sin duplicarse.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form
+            className="grid gap-4 md:grid-cols-[180px_1fr_auto]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (auditId && importForm.file) {
+                setImportSummary(null);
+                importFindings.mutate({ auditId, ...importForm });
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="import-format">Formato</Label>
+              <select
+                id="import-format"
+                className={selectClass}
+                value={importForm.format}
+                onChange={(event) => setImportForm({ ...importForm, format: event.target.value })}
+              >
+                <option value="nmap">Nmap XML</option>
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="import-file">Archivo</Label>
+              <Input
+                id="import-file"
+                type="file"
+                accept={importForm.format === 'nmap' ? '.xml,text/xml' : importForm.format === 'csv' ? '.csv,text/csv' : '.json,application/json'}
+                onChange={(event) => setImportForm({ ...importForm, file: event.target.files?.[0] || null })}
+              />
+            </div>
+            <Button className="self-end" disabled={!auditId || !importForm.file || importFindings.isPending}>
+              <Upload className="h-4 w-4" /> {importFindings.isPending ? 'Importando…' : 'Importar'}
+            </Button>
+          </form>
+
+          {importSummary && (
+            <div className="rounded-md border p-4 text-sm">
+              <p className="font-medium">{importSummary.filename}</p>
+              <p className="text-muted-foreground">
+                {importSummary.accepted} aceptados · {importSummary.replayed} ya existentes · {importSummary.rejected} rechazados · {importSummary.assetsCreated} activos nuevos
+              </p>
+              {importSummary.errors.length > 0 && (
+                <ul className="mt-3 max-h-36 list-disc space-y-1 overflow-y-auto pl-5 text-destructive">
+                  {importSummary.errors.map((error) => (
+                    <li key={`${error.source}-${error.message}`}>Registro {error.source}: {error.message}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

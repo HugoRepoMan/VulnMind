@@ -12,6 +12,13 @@ import {
   createKnowledgeRule, deleteKnowledgeRule, getKnowledgeRule, listKnowledgeRules,
   updateKnowledgeRule
 } from '../controllers/knowledge.controller.js';
+import { importFindings } from '../controllers/import.controller.js';
+import { exportFindings } from '../controllers/export.controller.js';
+import {
+  getNotificationConfiguration,
+  subscribeToNotifications,
+  unsubscribeFromNotifications
+} from '../controllers/notification.controller.js';
 
 const router = Router();
 
@@ -55,6 +62,28 @@ router.get('/knowledge/rules/:ruleId', requireAuth, canRead, getKnowledgeRule);
 router.post('/knowledge/rules', requireAuth, adminOnly, createKnowledgeRule);
 router.patch('/knowledge/rules/:ruleId', requireAuth, adminOnly, updateKnowledgeRule);
 router.delete('/knowledge/rules/:ruleId', requireAuth, adminOnly, deleteKnowledgeRule);
+
+router.post('/imports/findings', requireAuth, canWrite, importFindings);
+router.get('/exports/findings', requireAuth, canWrite, exportFindings);
+
+router.get(
+  '/notifications/configuration',
+  requireAuth,
+  canRead,
+  getNotificationConfiguration
+);
+router.post(
+  '/notifications/subscriptions',
+  requireAuth,
+  canRead,
+  subscribeToNotifications
+);
+router.delete(
+  '/notifications/subscriptions',
+  requireAuth,
+  canRead,
+  unsubscribeFromNotifications
+);
 
 // Endpoint para obtener métricas del dashboard
 router.get(

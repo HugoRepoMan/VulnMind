@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Shield, Activity, BookOpen, FileText, Settings, User } from 'lucide-react';
 import { useAppStore } from '@/store';
 
@@ -6,7 +6,21 @@ export default function Sidebar() {
   const user = useAppStore((state) => state.user);
   const canAudit = ['ADMIN', 'AUDITOR'].includes(user?.role);
 
+  const links = [
+    { to: '/', label: 'Dashboard', icon: Activity, end: true },
+    ...(canAudit ? [{ to: '/audits', label: 'Auditorías', icon: FileText }] : []),
+    { to: '/knowledge', label: 'Conocimiento', icon: BookOpen },
+    { to: '/settings', label: 'Configuración', icon: Settings }
+  ];
+  const linkClass = ({ isActive }) =>
+    `flex items-center space-x-3 rounded-lg px-3 py-2 transition-colors ${
+      isActive
+        ? 'bg-secondary text-secondary-foreground'
+        : 'text-muted-foreground hover:bg-secondary hover:text-secondary-foreground'
+    }`;
+
   return (
+    <>
     <aside className="w-64 border-r bg-card hidden md:block">
       <div className="h-full flex flex-col">
         <div className="h-16 flex items-center px-6 border-b">
@@ -15,24 +29,12 @@ export default function Sidebar() {
         </div>
         
         <nav className="flex-1 p-4 space-y-2">
-          <Link to="/" className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80">
-            <Activity className="h-4 w-4" />
-            <span className="font-medium">Dashboard</span>
-          </Link>
-          {canAudit && (
-            <Link to="/audits" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
-              <FileText className="h-4 w-4" />
-              <span className="font-medium">Auditorías</span>
-            </Link>
-          )}
-          <Link to="/knowledge" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
-            <BookOpen className="h-4 w-4" />
-            <span className="font-medium">Conocimiento</span>
-          </Link>
-          <Link to="/settings" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
-            <Settings className="h-4 w-4" />
-            <span className="font-medium">Configuración</span>
-          </Link>
+          {links.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} className={linkClass}>
+              <Icon className="h-4 w-4" />
+              <span className="font-medium">{label}</span>
+            </NavLink>
+          ))}
         </nav>
         
         <div className="p-4 border-t">
@@ -48,5 +50,14 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t bg-card/95 p-2 backdrop-blur md:hidden" aria-label="Navegación principal">
+      {links.map(({ to, label, icon: Icon, end }) => (
+        <NavLink key={to} to={to} end={end} className={({ isActive }) => `flex min-w-14 flex-col items-center gap-1 rounded-md px-2 py-1 text-[11px] ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+          <Icon className="h-4 w-4" />
+          <span>{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+    </>
   );
 }

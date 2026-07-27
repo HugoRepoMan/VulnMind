@@ -446,4 +446,115 @@ describe('VulnMind PostgreSQL API integration', () => {
     expect(missing.status).toBe(404);
     expect(missing.body.message).toBe('Asset not found');
   });
+
+  test('imports JSON findings through the engine and replays the same file idempotently', async () => {
+    const importBody = {
+      auditId: ids.audit,
+      format: 'json',
+      filename: 'integration-scan.json',
+      content: JSON.stringify({
+        hosts: [{
+          hostname: 'imported-integration-host',
+          ip: '198.51.100.25',
+          ports: [
+            { port: 2121, service: 'integration-service' },
+            { port: 443, service: 'https', vulnerability: 'CVE-2026-10001' }
+          ]
+        }]
+      })
+    };
+
+    const first = await request(app)
+      .post('/api/imports/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send(importBody);
+    const replay = await request(app)
+      .post('/api/imports/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send(importBody);
+
+    expect(first.status).toBe(200);
+    expect(first.body.data).toMatchObject({
+      total: 2,
+      accepted: 2,
+      replayed: 0,
+      rejected: 0,
+      assetsCreated: 1
+    });
+    expect(replay.status).toBe(200);
+    expect(replay.body.data).toMatchObject({
+      accepted: 0,
+      replayed: 2,
+      rejected: 0,
+      assetsCreated: 0
+    });
+  });
+
+  test('reports row errors for partial imports and rejects corrupt files', async () => {
+    const partial = await request(app)
+      .post('/api/imports/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        auditId: ids.audit,
+        format: 'csv',
+        filename: 'partial.csv',
+        content: [
+          'asset,ip,port,service',
+          'valid-import,203.0.113.10,2121,integration-service',
+          'invalid-import,203.0.113.11,99999,http'
+        ].join('\n')
+      });
+    const corrupt = await request(app)
+      .post('/api/imports/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        auditId: ids.audit,
+        format: 'json',
+        filename: 'corrupt.json',
+        content: '{not-json'
+      });
+
+    expect(partial.status).toBe(207);
+    expect(partial.body.data).toMatchObject({ accepted: 1, rejected: 1 });
+    expect(partial.body.data.errors[0].source).toBe(3);
+    expect(corrupt.status).toBe(400);
+    expect(corrupt.body.message).toBe('JSON corrupto o mal formado');
+  });
+
+  test('filters the real dashboard timeline and protects audited exports', async () => {
+    const stats = await request(app)
+      .get(`/api/dashboard/stats?projectId=${ids.project}&period=7d`)
+      .set('Authorization', `Bearer ${viewerToken}`);
+    const denied = await request(app)
+      .get(`/api/exports/findings?projectId=${ids.project}&format=csv&period=7d`)
+      .set('Authorization', `Bearer ${viewerToken}`);
+    const exported = await request(app)
+      .get(`/api/exports/findings?projectId=${ids.project}&format=csv&period=7d`)
+      .set('Authorization', `Bearer ${auditorToken}`);
+
+    expect(stats.status).toBe(200);
+    expect(stats.body.data.riskTrend).toHaveLength(7);
+    expect(stats.body.data.totalFindings).toBeGreaterThan(0);
+    expect(denied.status).toBe(403);
+    expect(exported.status).toBe(200);
+    expect(exported.headers['content-type']).toContain('text/csv');
+    expect(exported.text).toContain('integration-host');
+    expect(await prisma.auditLog.count({
+      where: { action: 'FINDINGS_EXPORTED', userId: ids.user }
+    })).toBeGreaterThan(0);
+  });
+
+  test('exposes Push availability without leaking VAPID private material', async () => {
+    const configuration = await request(app)
+      .get('/api/notifications/configuration')
+      .set('Authorization', `Bearer ${viewerToken}`);
+
+    expect(configuration.status).toBe(200);
+    expect(configuration.body.data).toMatchObject({
+      enabled: false,
+      publicKey: null,
+      subscribed: false
+    });
+    expect(JSON.stringify(configuration.body)).not.toContain('PRIVATE');
+  });
 });

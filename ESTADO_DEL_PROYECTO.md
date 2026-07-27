@@ -1,6 +1,6 @@
 # VulnMind: estado, funcionamiento y trabajo pendiente
 
-Última actualización: 26 de julio de 2026
+Última actualización: 27 de julio de 2026
 
 Rama principal: `main`
 
@@ -24,9 +24,9 @@ aplicación web con React, Express y PostgreSQL que permite:
 - consultar métricas reales y hallazgos recientes;
 - administrar las reglas de conocimiento desde la interfaz.
 
-Las etapas 1 a 6 están terminadas. Quedan la importación de archivos, operación
-offline completa, notificaciones, visualizaciones finales, exportaciones y el
-cierre de calidad/entrega.
+Las etapas 1 a 12 están terminadas. El sistema incorpora importación de archivos,
+operación offline, notificaciones, visualizaciones reales, exportaciones y un
+cierre de calidad reproducible en CI y Docker.
 
 ## Estado por etapa
 
@@ -38,12 +38,12 @@ cierre de calidad/entrega.
 | 4. CRUD operativo | Completada | Proyectos, auditorías, activos y hallazgos con relaciones reales. |
 | 5. Base de conocimiento | Completada | CRUD de reglas, filtros, administración y trazabilidad. |
 | 6. Motor inteligente | Completada | Idempotencia, correlación, desglose de riesgo y explicabilidad persistente. |
-| 7. Importadores | Pendiente | Nmap XML, CSV y JSON. |
-| 8. Offline y sincronización | Pendiente | Cola IndexedDB, reintentos y resolución de conflictos. |
-| 9. Notificaciones Push | Pendiente | VAPID, suscripciones y eventos. |
-| 10. Dashboard final | Pendiente | Serie temporal real y explicación visual. |
-| 11. Exportaciones | Pendiente | Informes y control de permisos. |
-| 12. Cierre | Pendiente | Más cobertura, CI/CD, Docker y documentación final. |
+| 7. Importadores | Completada | Nmap XML, CSV y JSON normalizados, validados e idempotentes. |
+| 8. Offline y sincronización | Completada | Borradores, cola IndexedDB, reintentos y conflictos. |
+| 9. Notificaciones Push | Completada | VAPID, suscripciones por usuario y alertas críticas. |
+| 10. Dashboard final | Completada | Serie temporal, filtros y explicación visual reales. |
+| 11. Exportaciones | Completada | CSV/JSON filtrados, RBAC y trazabilidad. |
+| 12. Cierre | Completada | Cobertura, CI/CD, Docker, móvil y documentación. |
 
 ## Arquitectura actual
 
@@ -65,8 +65,8 @@ cierre de calidad/entrega.
 - Zustand para sesión persistida.
 - Axios con interceptor Bearer y cierre de sesión ante respuestas `401`.
 - Tailwind CSS, componentes shadcn/ui, Lucide y Recharts.
-- Service worker PWA generado. Esto todavía no equivale a sincronización offline
-  completa; esa parte pertenece al trabajo pendiente.
+- Service worker PWA, borradores y cola Dexie con sincronización automática,
+  espera exponencial y resolución explícita de conflictos.
 
 ### Base de datos
 
@@ -192,11 +192,10 @@ identificadores MITRE/OWASP/CWE.
 - `/`: métricas reales y hallazgos recientes.
 - `/audits`: gestión operativa y registro manual de hallazgos.
 - `/knowledge`: consulta y administración de reglas.
-- `/settings`: marcador de posición; todavía no está implementada.
+- `/settings`: suscripción Push y administración de la cola offline.
 
-Importante: las tarjetas y hallazgos recientes del dashboard usan PostgreSQL,
-pero la gráfica de evolución semanal todavía contiene datos estáticos. Se
-reemplazará por una serie temporal real en la etapa 10.
+Las tarjetas, hallazgos recientes y series de 7, 30 o 90 días usan PostgreSQL.
+Los filtros por proyecto, auditoría y activo se aplican en servidor.
 
 ## API disponible
 
@@ -224,6 +223,10 @@ Todas las rutas salvo login y salud requieren `Authorization: Bearer <token>`.
 | `GET /api/knowledge/rules/:id` | Ver regla | Todos los roles |
 | `POST /api/knowledge/rules` | Crear regla | ADMIN |
 | `PATCH/DELETE /api/knowledge/rules/:id` | Editar o eliminar regla | ADMIN |
+| `POST /api/imports/findings` | Importar Nmap XML, CSV o JSON | ADMIN/AUDITOR |
+| `GET /api/exports/findings` | Exportar CSV o JSON filtrado | ADMIN/AUDITOR |
+| `GET /api/notifications/configuration` | Consultar disponibilidad Push | Todos los roles |
+| `POST/DELETE /api/notifications/subscriptions` | Activar o revocar Push | Todos los roles |
 
 Los endpoints de listado admiten filtros como `projectId`, `auditId`, `assetId`,
 `search`, `type` y `active`, según el recurso.
@@ -300,9 +303,11 @@ Estado de la última verificación:
 
 - Prisma format, validate, generate y migraciones: correctos;
 - backend lint/build: correctos;
-- backend: 12 de 12 pruebas de integración aprobadas;
+- backend: 26 de 26 pruebas unitarias e integrales aprobadas;
+- frontend: 3 de 3 pruebas de componentes aprobadas;
 - frontend lint/build PWA: correctos;
-- quedan 3 advertencias no bloqueantes de Fast Refresh preexistentes;
+- no quedan advertencias de Fast Refresh;
+- imágenes Docker de desarrollo y producción construidas correctamente;
 - idempotencia secuencial y concurrente verificada contra PostgreSQL.
 
 ## Archivos importantes
@@ -324,59 +329,30 @@ Estado de la última verificación:
 El archivo `backend/src/store/memory.js` queda únicamente como vestigio del
 prototipo y no participa en las rutas de producción.
 
-## Trabajo pendiente
+## Trabajo implementado en el cierre
 
-### Prioridad inmediata: importadores
+- Importadores con límite de 5 MB/1.000 registros, rechazo de XML con entidades,
+  detalle de errores y deduplicación de activos.
+- Cola Dexie aislada por usuario con borradores, estados, espera exponencial,
+  sincronización al volver la red y resolución explícita de conflictos.
+- Suscripciones Push persistentes, VAPID por variables de entorno, alertas para
+  riesgo crítico y limpieza automática de endpoints expirados.
+- Dashboard real con filtros, serie temporal, detalle de aportes, correlación,
+  recomendaciones y timeline del motor.
+- Exportaciones CSV/JSON resistentes a fórmulas de hoja de cálculo, filtradas,
+  limitadas por rol y registradas en `AuditLog`.
+- Pruebas de backend y frontend, CI con PostgreSQL, navegación móvil, carga
+  diferida por pantalla e imagen Nginx para producción.
 
-- Crear endpoints para importar Nmap XML, CSV y JSON.
-- Validar tipo, tamaño y estructura de archivos.
-- Convertir cada formato a un modelo común.
-- Crear o asociar activos sin duplicarlos.
-- Procesar cada hallazgo mediante el mismo motor e idempotencia.
-- Devolver resumen de aceptados, rechazados y errores por fila/host.
-- Añadir interfaz de carga y pruebas con archivos válidos y corruptos.
+### Seguimiento no bloqueante
 
-### Offline y sincronización
-
-- Definir tablas Dexie para borradores y cola.
-- Interceptar fallos de red sin perder registros.
-- Conservar la misma clave de idempotencia durante todos los reintentos.
-- Sincronizar al recuperar conexión.
-- Mostrar estado pendiente/fallido/sincronizado.
-- Resolver conflictos cuando una entidad cambió en servidor.
-
-### Notificaciones Push
-
-- Configurar claves VAPID sin almacenarlas en Git.
-- Persistir suscripciones por usuario.
-- Enviar alertas para riesgos críticos y eventos definidos.
-- Permitir activar, revocar y limpiar suscripciones inválidas.
-
-### Dashboard y explicabilidad visual
-
-- Reemplazar la serie semanal estática por datos agregados reales.
-- Añadir filtros por proyecto, auditoría, activo y periodo.
-- Crear detalle visual de hallazgo con reglas, aportes, correlación y timeline.
-- Conectar el botón “Nuevo Hallazgo” del dashboard o retirarlo.
-
-### Exportaciones
-
-- Definir formatos requeridos, por ejemplo PDF, CSV o JSON.
-- Aplicar permisos y filtros al exportar.
-- Incluir contexto, evidencia, riesgo, explicación y recomendaciones.
-- Registrar exportaciones sensibles en `AuditLog`.
-
-### Calidad y entrega final
-
-- Añadir pruebas unitarias de cada módulo del motor además de las integrales.
-- Probar errores de red, sesiones expiradas y más casos de cascada/conflicto.
-- Aumentar cobertura del frontend.
-- Revisar accesibilidad y diseño móvil.
-- Resolver las advertencias de Fast Refresh y dividir el bundle grande.
-- Confirmar workflows CI/CD y despliegue en un entorno limpio.
-- Crear variables y secretos de producción; nunca reutilizar credenciales del
-  seed.
-- Actualizar README, capturas y guía de demostración final.
+- Configurar secretos y claves VAPID reales en cada entorno; `.env.example`
+  contiene sólo marcadores.
+- React Router 7.18.1 conserva un aviso `npm audit` alto exclusivo del modo RSC.
+  VulnMind funciona como SPA y no habilita RSC; se mantiene la versión publicada
+  más reciente hasta que exista una actualización compatible.
+- Los formatos de exportación definidos para esta entrega son CSV y JSON. PDF
+  puede añadirse si el contrato académico o del cliente lo exige expresamente.
 
 ## Reglas para continuar sin romper lo existente
 
@@ -393,8 +369,6 @@ prototipo y no participa en las rutas de producción.
 
 ## Estado general
 
-El núcleo operativo está estable y probado. Ya existe una base sólida para
-continuar con importación y sincronización sin rehacer autenticación,
-persistencia, reglas o procesamiento inteligente. Lo que queda se concentra en
-entradas masivas, experiencia offline, presentación avanzada y preparación de
-entrega.
+VulnMind queda funcional de extremo a extremo y probado contra PostgreSQL. No
+quedan etapas funcionales abiertas en el plan 1–12; el trabajo posterior es de
+operación del entorno, seguimiento de dependencias y evolución del producto.

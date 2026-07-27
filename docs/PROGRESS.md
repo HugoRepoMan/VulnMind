@@ -231,11 +231,34 @@ Verificación final:
 - Reintentos secuenciales, conflicto de payload y concurrencia verificados contra
   PostgreSQL local.
 
-## Fases siguientes
+## FASES 7–12 — Entrada masiva, resiliencia y entrega
 
-- FASE 7: importación Nmap XML, CSV y JSON.
-- FASE 8: PWA offline, cola de sincronización y conflictos.
-- FASE 9: notificaciones Push con VAPID.
-- FASE 10: dashboard y explicabilidad visual con datos reales.
-- FASE 11: exportaciones con control de permisos.
-- FASE 12: cobertura de pruebas, Docker, CI/CD y documentación final.
+Estado: completadas el 27 de julio de 2026.
+
+Completado:
+
+- Importación Nmap XML, CSV y JSON mediante un modelo normalizado, asociación de
+  activos, motor común, claves idempotentes por contenido y resumen por registro.
+- Borradores y cola Dexie con aislamiento por usuario, espera exponencial,
+  conservación de claves, sincronización al volver la red y conflictos visibles.
+- Web Push con claves VAPID externas, suscripciones persistentes por usuario,
+  alertas críticas y limpieza de endpoints expirados.
+- Dashboard con filtros reales, series de 7/30/90 días y detalle visual de
+  reglas, riesgo, correlación, timeline y recomendaciones.
+- Exportación CSV/JSON con RBAC, filtros, contexto completo, neutralización de
+  fórmulas y registro `FINDINGS_EXPORTED`.
+- Pruebas unitarias del motor y parsers, pruebas integrales de la API y pruebas
+  de componentes del dashboard.
+- CI actualizado a Node 24 con PostgreSQL y migraciones; Docker de desarrollo y
+  producción validado, Nginx para SPA/API, navegación móvil y rutas diferidas.
+
+Verificación final:
+
+- Migraciones Prisma: 3/3 aplicadas.
+- Backend: lint/build correctos y 26/26 pruebas aprobadas.
+- Frontend: lint sin advertencias, 3/3 pruebas y build PWA correctos.
+- Imágenes Docker de backend, frontend de desarrollo y frontend Nginx de
+  producción construidas correctamente.
+- Auditoría de dependencias de producción del backend: 0 vulnerabilidades.
+- React Router mantiene un aviso RSC no aplicable a esta SPA; se usa la versión
+  publicada más reciente (7.18.1).

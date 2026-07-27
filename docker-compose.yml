@@ -23,10 +23,13 @@ services:
       dockerfile: Dockerfile
     container_name: vulnmind-backend
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
       - DATABASE_URL=postgresql://vulnmind:vulnmind_password@postgres:5432/vulnmind_db?schema=public
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:security@vulnmind.local}
       - NODE_ENV=development
     volumes:
       - ./backend:/app
@@ -41,11 +44,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: vulnmind-frontend
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:${BACKEND_PORT:-3000}/api}
     volumes:
       - ./frontend:/app
       - /app/node_modules

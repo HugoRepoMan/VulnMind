@@ -1,6 +1,6 @@
 import { prisma } from '../database/prisma.js';
 
-const matchesCondition = (condition, inference) =>
+export const matchesCondition = (condition, inference) =>
   Object.entries(condition).every(([key, expected]) => {
     const actual = inference[key];
     return Array.isArray(expected) ? expected.includes(actual) : actual === expected;

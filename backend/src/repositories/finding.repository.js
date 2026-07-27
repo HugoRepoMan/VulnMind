@@ -110,9 +110,16 @@ export const serializeFinding = (finding) => ({
   recommendations: finding.analysis?.recommendations ?? [],
   explanation: finding.analysis?.explanation ?? null,
   analysis: finding.analysis ? {
+    inferredOs: finding.analysis.inferredOs,
+    inferredService: finding.analysis.inferredService,
+    inferredVersion: finding.analysis.inferredVersion,
     calculatedRisk: finding.analysis.calculatedRisk,
     riskBreakdown: finding.analysis.riskBreakdown,
     matchedRules: finding.analysis.matchedRules,
+    mitreTechniques: finding.analysis.mitreTechniques,
+    owaspCategories: finding.analysis.owaspCategories,
+    cweIds: finding.analysis.cweIds,
+    recommendations: finding.analysis.recommendations,
     correlation: finding.analysis.correlation,
     timelineEvents: finding.analysis.timelineEvents,
     engineVersion: finding.analysis.engineVersion
@@ -132,13 +139,14 @@ export const findFindingByIdempotencyKey = async (idempotencyKey) => {
   return finding ? { finding, serialized: serializeFinding(finding) } : null;
 };
 
-export const findRecentFindings = async (limit = 10) => {
+export const findRecentFindings = async (limit = 10, where) => {
   const findings = await prisma.finding.findMany({
+    where,
     take: limit,
     orderBy: { createdAt: 'desc' },
     include: {
       asset: { select: { name: true } },
-      analysis: { select: { recommendations: true, explanation: true } }
+      analysis: true
     }
   });
 
