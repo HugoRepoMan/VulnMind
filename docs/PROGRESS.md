@@ -1,6 +1,6 @@
 # Progreso de VulnMind
 
-Última actualización: 2026-07-23
+Última actualización: 2026-07-26
 
 ## Diagnóstico inicial
 
@@ -130,10 +130,73 @@ Verificación final:
 - Flujo real en contenedores verificado: login 200, sesión 200 con rol `ADMIN`,
   dashboard 200 y hallazgos recientes 200.
 
+## FASE 4 — CRUD y relaciones operativas completas
+
+Estado: completada.
+
+Completado:
+
+- Añadidos endpoints de listado, detalle, creación, actualización y eliminación
+  para proyectos, auditorías y activos respetando la jerarquía
+  `Project -> Audit -> Asset`.
+- Añadidos listado, detalle, actualización de estado y eliminación de hallazgos;
+  la creación continúa pasando obligatoriamente por el Motor Inteligente.
+- Las respuestas de detalle incluyen sus relaciones y conteos para evitar datos
+  simulados en la interfaz.
+- Añadida validación Zod para nombres, estados, fechas, IP, tipo y parámetros de
+  relación, además de respuestas 404 para entidades inexistentes y 409 para
+  conflictos de integridad.
+- Aplicado RBAC uniforme: `ADMIN`, `AUDITOR` y `VIEWER` pueden consultar;
+  `ADMIN` y `AUDITOR` pueden crear y editar; sólo `ADMIN` puede eliminar.
+- Las creaciones y actualizaciones generan eventos trazables en `AuditLog` con
+  usuario, proyecto, auditoría, entidad y campos modificados.
+- Al eliminar un hallazgo se recalcula atómicamente el riesgo máximo del activo.
+- Reemplazada la pantalla simulada de auditorías por una interfaz conectada a
+  PostgreSQL que permite seleccionar y crear proyectos, auditorías y activos, y
+  registrar hallazgos sobre activos reales.
+- Corregida la prioridad de `/findings/recent` frente a
+  `/findings/:findingId`, detectada por las pruebas de integración.
+
+Verificación final:
+
+- Backend: lint y build correctos; 9/9 pruebas de integración correctas.
+- Frontend: lint correcto con las 3 advertencias preexistentes de Fast Refresh y
+  build PWA correcto.
+- CRUD relacional, validación, RBAC, logs y eliminación en cascada verificados
+  contra PostgreSQL local.
+
+## FASE 5 — Base de conocimiento persistente y administración
+
+Estado: completada.
+
+Completado:
+
+- Añadido CRUD REST para reglas de conocimiento con listado, detalle, creación,
+  edición, activación, desactivación y eliminación.
+- Incorporados filtros por texto, tipo y estado, conteo de análisis relacionados
+  y orden por actividad, prioridad y fecha de actualización.
+- Validación estricta para condiciones JSON, puntaje de riesgo, prioridad,
+  recomendación e identificadores MITRE, OWASP y CWE.
+- Aplicado RBAC: todos los roles autenticados pueden consultar las reglas y sólo
+  `ADMIN` puede modificarlas.
+- Cada creación, actualización y eliminación queda registrada en `AuditLog` con
+  el administrador responsable y los campos modificados.
+- Añadida una pantalla de base de conocimiento conectada a PostgreSQL para
+  buscar y consultar reglas; los administradores pueden gestionarlas desde la
+  misma interfaz.
+- Añadidas pruebas de integración para validación, permisos, filtros,
+  persistencia, edición, eliminación y trazabilidad.
+
+Verificación final:
+
+- Backend: lint y build correctos; 10/10 pruebas de integración correctas.
+- Frontend: lint correcto con las 3 advertencias preexistentes de Fast Refresh y
+  build PWA correcto.
+- Migraciones de Prisma al día y CRUD de conocimiento verificado contra
+  PostgreSQL local.
+
 ## Fases siguientes
 
-- FASE 4: CRUD y relaciones operativas completas.
-- FASE 5: base de conocimiento persistente y administración.
 - FASE 6: motor inteligente persistente, idempotente y explicable.
 - FASE 7: importación Nmap XML, CSV y JSON.
 - FASE 8: PWA offline, cola de sincronización y conflictos.

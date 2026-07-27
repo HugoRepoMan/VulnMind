@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout.jsx';
-import { Dashboard, Login, Audits } from '../pages/index.js';
+import { Dashboard, Login, Audits, Knowledge } from '../pages/index.js';
 import { useAppStore } from '@/store';
 
 function ProtectedRoute({ roles, children }) {
@@ -43,6 +43,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: <div className="p-8">Configuración (Próximamente)</div>
+      },
+      {
+        path: 'knowledge',
+        element: <Knowledge />
       },
       {
         path: '*',

@@ -6,6 +6,7 @@ import { prisma, disconnectPrisma } from './database/prisma.js';
 const ids = {
   user: '10000000-0000-4000-8000-000000000001',
   viewer: '10000000-0000-4000-8000-000000000004',
+  admin: '10000000-0000-4000-8000-000000000005',
   project: '10000000-0000-4000-8000-000000000002',
   audit: '10000000-0000-4000-8000-000000000003',
   asset: 'integration-asset',
@@ -15,6 +16,7 @@ const ids = {
 describe('VulnMind PostgreSQL API integration', () => {
   let auditorToken;
   let viewerToken;
+  let adminToken;
 
   beforeAll(async () => {
     const passwordHash = await bcrypt.hash('integration-password', 10);
@@ -26,6 +28,16 @@ describe('VulnMind PostgreSQL API integration', () => {
         email: 'integration@vulnmind.local',
         passwordHash,
         role: 'AUDITOR'
+      }
+    });
+    await prisma.user.upsert({
+      where: { id: ids.admin },
+      update: { passwordHash },
+      create: {
+        id: ids.admin,
+        email: 'admin-integration@vulnmind.local',
+        passwordHash,
+        role: 'ADMIN'
       }
     });
     await prisma.user.upsert({
@@ -76,7 +88,7 @@ describe('VulnMind PostgreSQL API integration', () => {
       }
     });
 
-    const [auditorLogin, viewerLogin] = await Promise.all([
+    const [auditorLogin, viewerLogin, adminLogin] = await Promise.all([
       request(app).post('/api/auth/login').send({
         email: 'integration@vulnmind.local',
         password: 'integration-password'
@@ -84,16 +96,21 @@ describe('VulnMind PostgreSQL API integration', () => {
       request(app).post('/api/auth/login').send({
         email: 'viewer-integration@vulnmind.local',
         password: 'integration-password'
+      }),
+      request(app).post('/api/auth/login').send({
+        email: 'admin-integration@vulnmind.local',
+        password: 'integration-password'
       })
     ]);
     auditorToken = auditorLogin.body.data.token;
     viewerToken = viewerLogin.body.data.token;
+    adminToken = adminLogin.body.data.token;
   });
 
   afterAll(async () => {
     await prisma.project.deleteMany({ where: { id: ids.project } });
     await prisma.knowledgeRule.deleteMany({ where: { id: ids.rule } });
-    await prisma.user.deleteMany({ where: { id: { in: [ids.user, ids.viewer] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [ids.user, ids.viewer, ids.admin] } } });
     await disconnectPrisma();
   });
 
@@ -203,5 +220,150 @@ describe('VulnMind PostgreSQL API integration', () => {
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('Validation Error');
     expect(countAfter).toBe(countBefore);
+  });
+
+  test('administers persistent knowledge rules with validation, RBAC and audit logs', async () => {
+    const denied = await request(app)
+      .post('/api/knowledge/rules')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        name: 'Unauthorized rule',
+        type: 'PORT_SERVICE',
+        condition: { port: 9999 },
+        baseRiskScore: 10,
+        recommendation: 'Do not create this rule'
+      });
+    expect(denied.status).toBe(403);
+
+    const invalid = await request(app)
+      .post('/api/knowledge/rules')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Invalid risk rule',
+        type: 'PORT_SERVICE',
+        condition: {},
+        baseRiskScore: 101,
+        recommendation: 'Invalid test recommendation'
+      });
+    expect(invalid.status).toBe(400);
+
+    const created = await request(app)
+      .post('/api/knowledge/rules')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Administrative integration rule',
+        type: 'PORT_SERVICE',
+        condition: { port: 4242 },
+        baseRiskScore: 42,
+        recommendation: 'Restrict access to the integration service',
+        mitreIds: ['T1046'],
+        priority: 25
+      });
+    expect(created.status).toBe(201);
+    const ruleId = created.body.data.id;
+
+    const updated = await request(app)
+      .patch(`/api/knowledge/rules/${ruleId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ active: false, baseRiskScore: 48 });
+    expect(updated.status).toBe(200);
+    expect(updated.body.data).toMatchObject({ active: false, baseRiskScore: 48 });
+
+    const listed = await request(app)
+      .get('/api/knowledge/rules?active=false&search=Administrative')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(listed.status).toBe(200);
+    expect(listed.body.data.map(({ id }) => id)).toContain(ruleId);
+
+    const removed = await request(app)
+      .delete(`/api/knowledge/rules/${ruleId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(removed.status).toBe(200);
+    expect(await prisma.knowledgeRule.findUnique({ where: { id: ruleId } })).toBeNull();
+
+    const logs = await prisma.auditLog.findMany({
+      where: { entityId: ruleId },
+      orderBy: { createdAt: 'asc' }
+    });
+    expect(logs.map(({ action }) => action)).toEqual([
+      'KNOWLEDGE_RULE_CREATED',
+      'KNOWLEDGE_RULE_UPDATED',
+      'KNOWLEDGE_RULE_DELETED'
+    ]);
+    expect(logs.every(({ userId }) => userId === ids.admin)).toBe(true);
+  });
+
+  test('manages the complete project, audit and asset relationship through the API', async () => {
+    const projectResponse = await request(app)
+      .post('/api/projects')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ name: 'Phase 4 project', description: 'CRUD integration' });
+
+    expect(projectResponse.status).toBe(201);
+    expect(projectResponse.body.data.owner.email).toBe('integration@vulnmind.local');
+    const projectId = projectResponse.body.data.id;
+
+    const auditResponse = await request(app)
+      .post(`/api/projects/${projectId}/audits`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ name: 'Phase 4 audit', status: 'IN_PROGRESS' });
+
+    expect(auditResponse.status).toBe(201);
+    const auditId = auditResponse.body.data.id;
+
+    const assetResponse = await request(app)
+      .post(`/api/audits/${auditId}/assets`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ name: 'phase-4-host', ip: '10.40.0.1', type: 'server' });
+
+    expect(assetResponse.status).toBe(201);
+    const assetId = assetResponse.body.data.id;
+
+    const [projectDetail, auditDetail, assetDetail] = await Promise.all([
+      request(app).get(`/api/projects/${projectId}`).set('Authorization', `Bearer ${viewerToken}`),
+      request(app).get(`/api/audits/${auditId}`).set('Authorization', `Bearer ${viewerToken}`),
+      request(app).get(`/api/assets/${assetId}`).set('Authorization', `Bearer ${viewerToken}`)
+    ]);
+
+    expect(projectDetail.body.data.audits).toHaveLength(1);
+    expect(auditDetail.body.data.assets).toHaveLength(1);
+    expect(assetDetail.body.data.audit.projectId).toBe(projectId);
+
+    const updateResponse = await request(app)
+      .patch(`/api/assets/${assetId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ status: 'INACTIVE' });
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body.data.status).toBe('INACTIVE');
+
+    const logs = await prisma.auditLog.findMany({ where: { projectId } });
+    expect(logs.map(({ action }) => action)).toEqual(expect.arrayContaining([
+      'PROJECT_CREATED', 'AUDIT_CREATED', 'ASSET_CREATED', 'ASSET_UPDATED'
+    ]));
+
+    const viewerDelete = await request(app)
+      .delete(`/api/projects/${projectId}`)
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(viewerDelete.status).toBe(403);
+
+    const adminDelete = await request(app)
+      .delete(`/api/projects/${projectId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(adminDelete.status).toBe(200);
+    expect(await prisma.project.findUnique({ where: { id: projectId } })).toBeNull();
+  });
+
+  test('validates operational payloads and returns missing relations as 404', async () => {
+    const invalid = await request(app)
+      .post('/api/projects')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ name: '' });
+    const missing = await request(app)
+      .get('/api/assets/missing-asset')
+      .set('Authorization', `Bearer ${viewerToken}`);
+
+    expect(invalid.status).toBe(400);
+    expect(missing.status).toBe(404);
+    expect(missing.body.message).toBe('Asset not found');
   });
 });

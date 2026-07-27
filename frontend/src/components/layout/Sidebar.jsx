@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Shield, Activity, FileText, Settings, User } from 'lucide-react';
+import { Shield, Activity, BookOpen, FileText, Settings, User } from 'lucide-react';
 import { useAppStore } from '@/store';
 
 export default function Sidebar() {
@@ -25,6 +25,10 @@ export default function Sidebar() {
               <span className="font-medium">Auditorías</span>
             </Link>
           )}
+          <Link to="/knowledge" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
+            <BookOpen className="h-4 w-4" />
+            <span className="font-medium">Conocimiento</span>
+          </Link>
           <Link to="/settings" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground">
             <Settings className="h-4 w-4" />
             <span className="font-medium">Configuración</span>
