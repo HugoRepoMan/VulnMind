@@ -195,9 +195,44 @@ Verificación final:
 - Migraciones de Prisma al día y CRUD de conocimiento verificado contra
   PostgreSQL local.
 
+## FASE 6 — Motor inteligente persistente, idempotente y explicable
+
+Estado: completada.
+
+Completado:
+
+- Versionado el motor y persistida su versión junto con cada análisis.
+- Añadido un desglose determinista del riesgo con aporte por regla, suma
+  original, límite aplicado y método de cálculo.
+- Mejorada la correlación contra el historial del activo para detectar
+  vulnerabilidades repetidas, antecedentes críticos y múltiples servicios
+  expuestos.
+- Generadas explicaciones basadas en los nombres y aportes reales de las reglas,
+  el límite del puntaje y las señales de correlación encontradas.
+- Persistida una línea de tiempo estructurada con inferencia, reglas, puntaje,
+  correlación y generación de la explicación.
+- Implementado `Idempotency-Key` con huella canónica del payload, aislamiento por
+  usuario y restricción única en PostgreSQL.
+- Los reintentos idénticos recuperan el resultado original sin crear hallazgos,
+  análisis ni logs duplicados; reutilizar la clave con otro payload devuelve
+  `409`.
+- Controlada la carrera entre solicitudes concurrentes: una persiste y la otra
+  recupera el resultado confirmado.
+- Endurecida la validación de los datos inferibles, incluido el rango de puertos.
+- El frontend genera claves de idempotencia para nuevos hallazgos y la
+  documentación describe el contrato para clientes externos.
+
+Verificación final:
+
+- Prisma format, validate, generate y migración correctos.
+- Backend: lint y build correctos; 12/12 pruebas de integración correctas.
+- Frontend: lint correcto con las 3 advertencias preexistentes de Fast Refresh y
+  build PWA correcto.
+- Reintentos secuenciales, conflicto de payload y concurrencia verificados contra
+  PostgreSQL local.
+
 ## Fases siguientes
 
-- FASE 6: motor inteligente persistente, idempotente y explicable.
 - FASE 7: importación Nmap XML, CSV y JSON.
 - FASE 8: PWA offline, cola de sincronización y conflictos.
 - FASE 9: notificaciones Push con VAPID.

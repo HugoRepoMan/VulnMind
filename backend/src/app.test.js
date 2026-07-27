@@ -222,6 +222,86 @@ describe('VulnMind PostgreSQL API integration', () => {
     expect(countAfter).toBe(countBefore);
   });
 
+  test('processes findings idempotently and persists an explainable engine trace', async () => {
+    const payload = {
+      assetId: ids.asset,
+      rawData: {
+        port: 2121,
+        service: 'integration-service',
+        vulnerability: 'CVE-INTEGRATION-0001'
+      }
+    };
+    const key = 'integration-idempotency-engine-0001';
+    const countBefore = await prisma.finding.count({ where: { assetId: ids.asset } });
+
+    const first = await request(app)
+      .post('/api/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .set('Idempotency-Key', key)
+      .send(payload);
+    const replay = await request(app)
+      .post('/api/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .set('Idempotency-Key', key)
+      .send(payload);
+    const countAfter = await prisma.finding.count({ where: { assetId: ids.asset } });
+
+    expect(first.status).toBe(202);
+    expect(first.body.idempotentReplay).toBe(false);
+    expect(replay.status).toBe(200);
+    expect(replay.body.idempotentReplay).toBe(true);
+    expect(replay.body.data.id).toBe(first.body.data.id);
+    expect(countAfter).toBe(countBefore + 1);
+    expect(first.body.data.analysis).toMatchObject({
+      engineVersion: '2.0',
+      calculatedRisk: 55,
+      riskBreakdown: {
+        finalScore: 55,
+        method: 'SUM_ACTIVE_RULES_CAPPED_0_100'
+      }
+    });
+    expect(first.body.data.analysis.riskBreakdown.contributions[0]).toMatchObject({
+      ruleId: ids.rule,
+      score: 55
+    });
+    expect(first.body.data.analysis.timelineEvents.map(({ step }) => step)).toEqual([
+      'INFERENCE_COMPLETED',
+      'RULES_MATCHED',
+      'RISK_CALCULATED',
+      'CORRELATION_COMPLETED',
+      'EXPLANATION_GENERATED'
+    ]);
+    expect(first.body.data.explanation).toContain('Integration-only port rule aportó 55 puntos');
+
+    const conflict = await request(app)
+      .post('/api/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .set('Idempotency-Key', key)
+      .send({ ...payload, rawData: { ...payload.rawData, port: 4242 } });
+    expect(conflict.status).toBe(409);
+  });
+
+  test('deduplicates concurrent requests with the same idempotency key', async () => {
+    const key = 'integration-concurrent-engine-0001';
+    const payload = {
+      assetId: ids.asset,
+      rawData: { port: 2121, service: 'concurrent-integration-service' }
+    };
+    const countBefore = await prisma.finding.count({ where: { assetId: ids.asset } });
+    const sendRequest = () => request(app)
+      .post('/api/findings')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .set('Idempotency-Key', key)
+      .send(payload);
+
+    const responses = await Promise.all([sendRequest(), sendRequest()]);
+    const countAfter = await prisma.finding.count({ where: { assetId: ids.asset } });
+
+    expect(responses.map(({ status }) => status).sort()).toEqual([200, 202]);
+    expect(new Set(responses.map(({ body }) => body.data.id)).size).toBe(1);
+    expect(countAfter).toBe(countBefore + 1);
+  });
+
   test('administers persistent knowledge rules with validation, RBAC and audit logs', async () => {
     const denied = await request(app)
       .post('/api/knowledge/rules')

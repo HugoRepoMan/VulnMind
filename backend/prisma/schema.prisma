@@ -130,19 +130,21 @@ model Asset {
 }
 
 model Finding {
-  id            String           @id @default(uuid())
-  assetId       String
-  asset         Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  rawData       Json
-  vulnerability String?
-  port          Int?
-  status        FindingStatus    @default(OPEN)
-  severity      Severity         @default(LOW)
-  riskScore     Float            @default(0)
-  processedAt   DateTime?
-  analysis      FindingAnalysis?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id                 String           @id @default(uuid())
+  idempotencyKey     String?          @unique
+  requestFingerprint String?
+  assetId            String
+  asset              Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  rawData            Json
+  vulnerability      String?
+  port               Int?
+  status             FindingStatus    @default(OPEN)
+  severity           Severity         @default(LOW)
+  riskScore          Float            @default(0)
+  processedAt        DateTime?
+  analysis           FindingAnalysis?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([assetId])
   @@index([status])
@@ -202,6 +204,8 @@ model FindingAnalysis {
   inferredService String?
   inferredVersion String?
   calculatedRisk  Float
+  riskBreakdown   Json?
+  engineVersion   String          @default("1.0")
   matchedRules    Json
   rules           KnowledgeRule[] @relation("AnalysisRules")
   mitreTechniques String[]        @default([])

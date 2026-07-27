@@ -6,18 +6,23 @@
  */
 class ScoringEngine {
   async calculateRisk(assetId, matchedRules) {
-    let baseScore = 0;
-    
-    for (const rule of matchedRules) {
-      baseScore += (rule.baseRiskScore || 0);
-    }
-    
-    // Normalización matemática simple a 0-100
-    // (Luego se aplicará decaimiento temporal y factores ambientales)
-    const finalScore = Math.min(100, Math.max(0, baseScore));
+    const contributions = matchedRules.map((rule) => ({
+      ruleId: rule.id,
+      ruleName: rule.name,
+      score: Number(rule.baseRiskScore) || 0,
+      priority: rule.priority
+    }));
+    const rawScore = contributions.reduce((total, item) => total + item.score, 0);
+    const finalScore = Math.min(100, Math.max(0, rawScore));
     
     console.log(`[ScoringEngine] Riesgo calculado para Activo ${assetId}: ${finalScore}/100`);
-    return finalScore;
+    return {
+      finalScore,
+      rawScore,
+      capped: rawScore > 100,
+      method: 'SUM_ACTIVE_RULES_CAPPED_0_100',
+      contributions
+    };
   }
 }
 

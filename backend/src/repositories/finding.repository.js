@@ -28,6 +28,8 @@ export const createFindingWithAnalysis = async (findingData, engineResult) =>
     const finding = await tx.finding.create({
       data: {
         assetId: findingData.assetId,
+        idempotencyKey: findingData.idempotencyKey,
+        requestFingerprint: findingData.requestFingerprint,
         rawData: findingData.rawData,
         vulnerability: engineResult.inferenceResult.vulnerability,
         port: engineResult.inferenceResult.port,
@@ -41,6 +43,8 @@ export const createFindingWithAnalysis = async (findingData, engineResult) =>
             inferredService: engineResult.inferenceResult.service,
             inferredVersion: engineResult.inferenceResult.version,
             calculatedRisk: engineResult.calculatedRisk,
+            riskBreakdown: engineResult.riskBreakdown,
+            engineVersion: engineResult.engineVersion,
             matchedRules: engineResult.matchedRules.map((rule) => ({
               id: rule.id,
               name: rule.name,
@@ -55,6 +59,7 @@ export const createFindingWithAnalysis = async (findingData, engineResult) =>
             cweIds: uniqueValues(engineResult.matchedRules, 'cweIds'),
             recommendations: engineResult.recommendations,
             correlation: engineResult.correlation,
+            timelineEvents: engineResult.timelineEvents,
             explanation: engineResult.explanation
           }
         }
@@ -94,7 +99,7 @@ export const createFindingWithAnalysis = async (findingData, engineResult) =>
     return serializeFinding(finding);
   });
 
-const serializeFinding = (finding) => ({
+export const serializeFinding = (finding) => ({
   id: finding.id,
   assetId: finding.assetId,
   assetName: finding.asset.name,
@@ -104,8 +109,28 @@ const serializeFinding = (finding) => ({
   riskScore: finding.riskScore,
   recommendations: finding.analysis?.recommendations ?? [],
   explanation: finding.analysis?.explanation ?? null,
+  analysis: finding.analysis ? {
+    calculatedRisk: finding.analysis.calculatedRisk,
+    riskBreakdown: finding.analysis.riskBreakdown,
+    matchedRules: finding.analysis.matchedRules,
+    correlation: finding.analysis.correlation,
+    timelineEvents: finding.analysis.timelineEvents,
+    engineVersion: finding.analysis.engineVersion
+  } : null,
   timestamp: finding.createdAt.toISOString()
 });
+
+export const findFindingByIdempotencyKey = async (idempotencyKey) => {
+  if (!idempotencyKey) return null;
+  const finding = await prisma.finding.findUnique({
+    where: { idempotencyKey },
+    include: {
+      asset: { select: { name: true } },
+      analysis: true
+    }
+  });
+  return finding ? { finding, serialized: serializeFinding(finding) } : null;
+};
 
 export const findRecentFindings = async (limit = 10) => {
   const findings = await prisma.finding.findMany({

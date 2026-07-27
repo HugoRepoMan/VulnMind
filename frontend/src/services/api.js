@@ -56,8 +56,10 @@ export const findingsService = {
     const response = await api.get('/findings', { params: assetId ? { assetId } : {} });
     return response.data.data;
   },
-  createFinding: async (payload) => {
-    const response = await api.post('/findings', payload);
+  createFinding: async ({ idempotencyKey = crypto.randomUUID(), ...payload }) => {
+    const response = await api.post('/findings', payload, {
+      headers: { 'Idempotency-Key': idempotencyKey }
+    });
     return response.data.data;
   },
   updateFinding: async ({ id, ...payload }) => {

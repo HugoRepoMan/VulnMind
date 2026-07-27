@@ -6,6 +6,8 @@ import CorrelationEngine from './correlation/index.js';
 import RecommendationsEngine from './recommendations/index.js';
 import ExplainabilityEngine from './explainability/index.js';
 
+export const ENGINE_VERSION = '2.0';
+
 /**
  * VulnMind Engine
  * 
@@ -27,37 +29,47 @@ class VulnMindEngine {
     const matchedRules = await KnowledgeEngine.matchRules(inferenceResult);
     
     // 3. Scoring Inicial
-    const riskScore = await ScoringEngine.calculateRisk(assetId, matchedRules);
+    const riskBreakdown = await ScoringEngine.calculateRisk(assetId, matchedRules);
 
     // 4. Completar el pipeline antes de responder para no perder resultados.
     const pipelineResult = await this.completePipeline(
       assetId,
       inferenceResult,
       matchedRules,
-      riskScore
+      riskBreakdown
     );
 
     return {
       success: true,
-      riskScore,
-      calculatedRisk: riskScore,
+      riskScore: riskBreakdown.finalScore,
+      calculatedRisk: riskBreakdown.finalScore,
+      riskBreakdown,
+      engineVersion: ENGINE_VERSION,
       inferenceResult,
       matchedRules,
       ...pipelineResult
     };
   }
 
-  async completePipeline(assetId, inference, rules, riskScore) {
+  async completePipeline(assetId, inference, rules, riskBreakdown) {
     const correlation = await CorrelationEngine.correlate(assetId, inference, rules);
     const recommendations = await RecommendationsEngine.generate(rules, correlation);
     const explanation = await ExplainabilityEngine.generateExplanation(
-      riskScore,
+      riskBreakdown,
       rules,
       correlation
     );
 
     console.log(`[VulnMindEngine] Pipeline completado para Activo ${assetId}.`);
-    return { correlation, recommendations, explanation };
+    const completedAt = new Date().toISOString();
+    const timelineEvents = [
+      { step: 'INFERENCE_COMPLETED', at: completedAt, details: { fields: inference } },
+      { step: 'RULES_MATCHED', at: completedAt, details: { ruleIds: rules.map(({ id }) => id) } },
+      { step: 'RISK_CALCULATED', at: completedAt, details: riskBreakdown },
+      { step: 'CORRELATION_COMPLETED', at: completedAt, details: { signals: correlation.signals } },
+      { step: 'EXPLANATION_GENERATED', at: completedAt }
+    ];
+    return { correlation, recommendations, explanation, timelineEvents };
   }
 }
 

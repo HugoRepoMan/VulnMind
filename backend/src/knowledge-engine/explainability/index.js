@@ -6,19 +6,23 @@
  * un nivel de riesgo específico.
  */
 class ExplainabilityEngine {
-  async generateExplanation(riskScore, rules, correlationResult) {
+  async generateExplanation(riskBreakdown, rules, correlationResult) {
     console.log(`[ExplainabilityEngine] Construyendo explicación en lenguaje natural...`);
     
     if (rules.length === 0) {
-      return "No se encontraron vulnerabilidades conocidas para este hallazgo. El riesgo se mantiene en el nivel base.";
+      return 'No coincidió ninguna regla activa; por eso el puntaje calculado es 0 de 100.';
     }
 
-    const ruleCauses = rules.map(r => r.recommendation ? "se identificó la necesidad de " + r.recommendation.toLowerCase() : "").filter(Boolean);
-    
-    let explanation = `El nivel de riesgo se evaluó en ${riskScore} debido a que ${ruleCauses.join(' y ')}.`;
+    const ruleCauses = riskBreakdown.contributions
+      .map(({ ruleName, score }) => `${ruleName} aportó ${score} puntos`);
+    let explanation = `El riesgo es ${riskBreakdown.finalScore} de 100: ${ruleCauses.join('; ')}.`;
+
+    if (riskBreakdown.capped) {
+      explanation += ` La suma original fue ${riskBreakdown.rawScore} y se limitó al máximo de 100.`;
+    }
     
     if (correlationResult?.escalationRisk) {
-      explanation += " Además, la correlación con hallazgos anteriores indica una ruta probable de ataque lateral, lo que agrava severamente la puntuación.";
+      explanation += ` ${correlationResult.summary}`;
     }
 
     return explanation;

@@ -26,5 +26,22 @@ VulnMind es una Progressive Web App (PWA) diseñada para funcionar como un asist
    ```
 4. El Frontend estará disponible en `http://localhost:5173` y la API en `http://localhost:3000`.
 
+## Procesamiento idempotente de hallazgos
+
+`POST /api/findings` admite el encabezado `Idempotency-Key`. Debe conservarse la
+misma clave al reintentar una solicitud: si el payload coincide, la API devuelve
+el hallazgo ya procesado sin duplicarlo; si la clave se reutiliza con otro
+payload, responde con `409 Conflict`.
+
+```http
+POST /api/findings
+Authorization: Bearer <token>
+Idempotency-Key: audit-device-01-scan-0001
+Content-Type: application/json
+```
+
+La respuesta incluye el desglose del riesgo, reglas aplicadas, señales de
+correlación, versión del motor y línea de tiempo que justifican el resultado.
+
 ---
 *Desarrollado para optimizar y asistir en los procesos de auditoría técnica.*
