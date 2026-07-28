@@ -1,3 +1,5 @@
+// Contrato de PostgreSQL: `public` contiene operación/usuarios y `knowledge`
+// contiene reglas y análisis derivados por el Motor Inteligente.
 generator client {
   provider = "prisma-client-js"
 }
@@ -59,10 +61,12 @@ enum Severity {
 }
 
 model User {
+  // active bloquea el acceso sin eliminar proyectos ni trazabilidad histórica.
   id                String             @id @default(uuid())
   email             String             @unique
   passwordHash      String
   role              Role               @default(AUDITOR)
+  active            Boolean            @default(true)
   projects          Project[]
   auditLogs         AuditLog[]
   pushSubscriptions PushSubscription[]
@@ -70,6 +74,7 @@ model User {
   updatedAt         DateTime           @updatedAt
 
   @@index([role])
+  @@index([active])
   @@schema("public")
 }
 
@@ -148,6 +153,7 @@ model Asset {
 }
 
 model Finding {
+  // rawData conserva evidencia original; analysis almacena el resultado derivado.
   id                 String           @id @default(uuid())
   idempotencyKey     String?          @unique
   requestFingerprint String?

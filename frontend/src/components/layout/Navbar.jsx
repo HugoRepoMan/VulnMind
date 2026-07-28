@@ -1,3 +1,4 @@
+/** Identidad visible, acceso permitido a alertas y cierre de la sesión local. */
 import { Bell, Search, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const user = useAppStore((state) => state.user);
   const logout = useAppStore((state) => state.logout);
+  const canConfigure = ['ADMIN', 'AUDITOR'].includes(user?.role);
 
   const handleLogout = () => {
     logout();
@@ -31,10 +33,12 @@ export default function Navbar() {
         <span className="hidden text-sm text-muted-foreground lg:inline">
           {user?.email} · {user?.role}
         </span>
-        <Button variant="outline" size="icon" className="relative" aria-label="Configurar notificaciones" onClick={() => navigate('/settings')}>
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive"></span>
-        </Button>
+        {canConfigure && (
+          <Button variant="outline" size="icon" className="relative" aria-label="Configurar notificaciones" onClick={() => navigate('/settings')}>
+            <Bell className="h-4 w-4" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive"></span>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"

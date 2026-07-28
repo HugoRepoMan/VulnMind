@@ -1,3 +1,4 @@
+/** Explica reglas, desglose de riesgo, correlación y recomendaciones del hallazgo. */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 

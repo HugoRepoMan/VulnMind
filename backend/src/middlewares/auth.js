@@ -1,3 +1,7 @@
+/**
+ * Seguridad reutilizable de rutas: valida el token, vuelve a consultar que la
+ * cuenta siga activa y luego compara su rol con los permitidos.
+ */
 import {
   findPublicUserById,
   verifyAccessToken
@@ -16,6 +20,7 @@ export const requireAuth = async (req, res, next) => {
 
     const token = authorization.slice('Bearer '.length).trim();
     const payload = verifyAccessToken(token);
+    // Consultar PostgreSQL invalida al instante tokens de cuentas bloqueadas.
     const user = await findPublicUserById(payload.sub);
 
     if (!user) {

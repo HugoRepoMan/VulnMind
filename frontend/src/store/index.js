@@ -1,3 +1,4 @@
+/** Sesión global persistida para conservar el acceso al recargar la SPA. */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 

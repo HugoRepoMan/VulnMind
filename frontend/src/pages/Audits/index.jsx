@@ -1,3 +1,7 @@
+/**
+ * Gestión operativa de proyectos, auditorías, activos, importaciones y
+ * hallazgos. Las selecciones aportan los IDs reales usados por cada petición.
+ */
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, FolderKanban, PlusCircle, Server, ShieldCheck, Upload } from 'lucide-react';

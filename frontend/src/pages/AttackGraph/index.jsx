@@ -1,3 +1,7 @@
+/**
+ * Coordina auditoría, ruta activa, colapso y cámara del grafo. La semántica
+ * llega del backend y ELK calcula las posiciones en graph-layout.js.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {

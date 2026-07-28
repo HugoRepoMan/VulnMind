@@ -1,3 +1,7 @@
+/**
+ * CRUD e importación de reglas. La validación evita activar condiciones vacías
+ * o puntajes fuera de rango que alterarían el Motor Inteligente.
+ */
 import { z } from 'zod';
 import { prisma } from '../database/prisma.js';
 

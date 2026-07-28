@@ -1,3 +1,7 @@
+/**
+ * Vista común a todos los roles: coordina filtros dependientes, métricas,
+ * tendencia y hallazgos recientes. Sólo roles operativos ven acciones de escritura.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Download, PlusCircle } from 'lucide-react';

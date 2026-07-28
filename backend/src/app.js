@@ -1,3 +1,7 @@
+/**
+ * Ensambla Express (seguridad, CORS, logs, JSON, rutas y errores). No abre el
+ * puerto, por eso las pruebas pueden importar la aplicación.
+ */
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

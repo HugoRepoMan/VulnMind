@@ -1,3 +1,7 @@
+/**
+ * Cola offline. Reutiliza Idempotency-Key al reintentar para que una caída de
+ * red no produzca hallazgos duplicados en PostgreSQL.
+ */
 import api from '@/services/api';
 import { db } from '@/db';
 import { useAppStore } from '@/store';

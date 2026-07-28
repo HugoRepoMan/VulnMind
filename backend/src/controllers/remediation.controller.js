@@ -1,3 +1,7 @@
+/**
+ * Reúne hallazgos, reglas y activos persistidos para calcular qué correcciones
+ * reducen más riesgo dentro del filtro solicitado.
+ */
 import { z } from 'zod';
 import { prisma } from '../database/prisma.js';
 import { buildAttackGraph } from '../services/attack-graph.service.js';

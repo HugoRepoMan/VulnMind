@@ -1,3 +1,7 @@
+/**
+ * Adaptador puro Grafo → ELK → React Flow: define tamaños, columnas, separación,
+ * visibilidad por colapso y resaltado exacto de rutas.
+ */
 import { MarkerType } from '@xyflow/react';
 import ELK from 'elkjs/lib/elk.bundled.js';
 
@@ -30,6 +34,7 @@ const edgeHandles = (index) => {
 };
 
 export const layoutAttackGraph = async (nodes, edges) => {
+  // ELK recibe tamaños reales para evitar superposición sin coordenadas manuales.
   if (!nodes.length) return { nodes: [], edges: [] };
   const graph = await elk.layout({
     id: 'attack-graph',

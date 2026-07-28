@@ -1,3 +1,7 @@
+/**
+ * Lee una única auditoría desde PostgreSQL y entrega sus registros a la
+ * transformación pura. Exigir auditId impide mezclar dos escaneos.
+ */
 import { z } from 'zod';
 import { prisma } from '../database/prisma.js';
 import { buildAttackGraph } from '../services/attack-graph.service.js';

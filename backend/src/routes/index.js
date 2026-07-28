@@ -1,7 +1,11 @@
+/**
+ * Matriz central de permisos HTTP. VIEWER sólo llega a datos del Dashboard;
+ * AUDITOR trabaja con datos operativos y ADMIN además gestiona el sistema.
+ */
 import { Router } from 'express';
 import { processFinding } from '../controllers/finding.controller.js';
 import { getStats, getRecentFindings } from '../controllers/dashboard.controller.js';
-import { getSession, login } from '../controllers/auth.controller.js';
+import { getSession, login, register } from '../controllers/auth.controller.js';
 import { allowRoles, requireAuth } from '../middlewares/auth.js';
 import {
   createAsset, createAudit, createProject, deleteAsset, deleteAudit, deleteFinding,
@@ -22,6 +26,9 @@ import {
   subscribeToNotifications,
   unsubscribeFromNotifications
 } from '../controllers/notification.controller.js';
+import {
+  createUser, listUsers, resetUserPassword, updateUser
+} from '../controllers/user.controller.js';
 
 const router = Router();
 
@@ -30,38 +37,45 @@ router.get('/health', (req, res) => {
 });
 
 router.post('/auth/login', login);
+router.post('/auth/register', register);
 router.get('/auth/me', requireAuth, getSession);
 
-const canRead = allowRoles('ADMIN', 'AUDITOR', 'VIEWER');
+const dashboardRead = allowRoles('ADMIN', 'AUDITOR', 'VIEWER');
+const operationalRead = allowRoles('ADMIN', 'AUDITOR');
 const canWrite = allowRoles('ADMIN', 'AUDITOR');
 const adminOnly = allowRoles('ADMIN');
 
-router.get('/projects', requireAuth, canRead, listProjects);
+router.get('/users', requireAuth, adminOnly, listUsers);
+router.post('/users', requireAuth, adminOnly, createUser);
+router.patch('/users/:userId', requireAuth, adminOnly, updateUser);
+router.post('/users/:userId/reset-password', requireAuth, adminOnly, resetUserPassword);
+
+router.get('/projects', requireAuth, dashboardRead, listProjects);
 router.post('/projects', requireAuth, canWrite, createProject);
-router.get('/projects/:projectId', requireAuth, canRead, getProject);
+router.get('/projects/:projectId', requireAuth, operationalRead, getProject);
 router.patch('/projects/:projectId', requireAuth, canWrite, updateProject);
 router.delete('/projects/:projectId', requireAuth, adminOnly, deleteProject);
 router.post('/projects/:projectId/audits', requireAuth, canWrite, createAudit);
 
-router.get('/audits', requireAuth, canRead, listAudits);
-router.get('/audits/:auditId', requireAuth, canRead, getAudit);
+router.get('/audits', requireAuth, dashboardRead, listAudits);
+router.get('/audits/:auditId', requireAuth, operationalRead, getAudit);
 router.patch('/audits/:auditId', requireAuth, canWrite, updateAudit);
 router.delete('/audits/:auditId', requireAuth, adminOnly, deleteAudit);
 router.post('/audits/:auditId/assets', requireAuth, canWrite, createAsset);
 
-router.get('/assets', requireAuth, canRead, listAssets);
-router.get('/assets/:assetId', requireAuth, canRead, getAsset);
+router.get('/assets', requireAuth, dashboardRead, listAssets);
+router.get('/assets/:assetId', requireAuth, operationalRead, getAsset);
 router.patch('/assets/:assetId', requireAuth, canWrite, updateAsset);
 router.delete('/assets/:assetId', requireAuth, adminOnly, deleteAsset);
 
-router.get('/findings', requireAuth, canRead, listFindings);
-router.get('/findings/recent', requireAuth, canRead, getRecentFindings);
-router.get('/findings/:findingId', requireAuth, canRead, getFinding);
+router.get('/findings', requireAuth, operationalRead, listFindings);
+router.get('/findings/recent', requireAuth, dashboardRead, getRecentFindings);
+router.get('/findings/:findingId', requireAuth, operationalRead, getFinding);
 router.patch('/findings/:findingId', requireAuth, canWrite, updateFinding);
 router.delete('/findings/:findingId', requireAuth, adminOnly, deleteFinding);
 
-router.get('/knowledge/rules', requireAuth, canRead, listKnowledgeRules);
-router.get('/knowledge/rules/:ruleId', requireAuth, canRead, getKnowledgeRule);
+router.get('/knowledge/rules', requireAuth, operationalRead, listKnowledgeRules);
+router.get('/knowledge/rules/:ruleId', requireAuth, operationalRead, getKnowledgeRule);
 router.post('/knowledge/rules', requireAuth, adminOnly, createKnowledgeRule);
 router.post('/knowledge/rules/import', requireAuth, adminOnly, importKnowledgeRules);
 router.patch('/knowledge/rules/:ruleId', requireAuth, adminOnly, updateKnowledgeRule);
@@ -69,26 +83,26 @@ router.delete('/knowledge/rules/:ruleId', requireAuth, adminOnly, deleteKnowledg
 
 router.post('/imports/findings', requireAuth, canWrite, importFindings);
 router.get('/exports/findings', requireAuth, canWrite, exportFindings);
-router.get('/comparisons/scans', requireAuth, canRead, compareScans);
-router.get('/attack-graph', requireAuth, canRead, getAttackGraph);
-router.get('/remediation-priorities', requireAuth, canRead, getRemediationPriorities);
+router.get('/comparisons/scans', requireAuth, operationalRead, compareScans);
+router.get('/attack-graph', requireAuth, operationalRead, getAttackGraph);
+router.get('/remediation-priorities', requireAuth, operationalRead, getRemediationPriorities);
 
 router.get(
   '/notifications/configuration',
   requireAuth,
-  canRead,
+  operationalRead,
   getNotificationConfiguration
 );
 router.post(
   '/notifications/subscriptions',
   requireAuth,
-  canRead,
+  operationalRead,
   subscribeToNotifications
 );
 router.delete(
   '/notifications/subscriptions',
   requireAuth,
-  canRead,
+  operationalRead,
   unsubscribeFromNotifications
 );
 

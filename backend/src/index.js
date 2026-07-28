@@ -1,3 +1,4 @@
+/** Punto de arranque: abre el servidor HTTP usando el puerto del entorno. */
 import app from './app.js';
 import { disconnectPrisma } from './database/prisma.js';
 

@@ -1,3 +1,7 @@
+/**
+ * Persiste conjuntamente hallazgo, análisis, reglas relacionadas, riesgo del
+ * activo y trazabilidad.
+ */
 import { prisma } from '../database/prisma.js';
 
 const severityFromRisk = (riskScore) => {

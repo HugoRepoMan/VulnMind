@@ -1,3 +1,7 @@
+/**
+ * Mapa de pantallas y guardas de sesión/rol. La API repite estas validaciones
+ * porque ocultar una página en el navegador no constituye seguridad.
+ */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout.jsx';
@@ -5,6 +9,7 @@ import { useAppStore } from '@/store';
 
 const Dashboard = lazy(() => import('../pages/Dashboard/index.jsx'));
 const Login = lazy(() => import('../pages/Login/index.jsx'));
+const Register = lazy(() => import('../pages/Register/index.jsx'));
 const Audits = lazy(() => import('../pages/Audits/index.jsx'));
 const Knowledge = lazy(() => import('../pages/Knowledge/index.jsx'));
 const Settings = lazy(() => import('../pages/Settings/index.jsx'));
@@ -56,19 +61,35 @@ const router = createBrowserRouter([
       },
       {
         path: 'settings',
-        element: page(<Settings />)
+        element: (
+          <ProtectedRoute roles={['ADMIN', 'AUDITOR']}>
+            {page(<Settings />)}
+          </ProtectedRoute>
+        )
       },
       {
         path: 'knowledge',
-        element: page(<Knowledge />)
+        element: (
+          <ProtectedRoute roles={['ADMIN', 'AUDITOR']}>
+            {page(<Knowledge />)}
+          </ProtectedRoute>
+        )
       },
       {
         path: 'attack-graph',
-        element: page(<AttackGraph />)
+        element: (
+          <ProtectedRoute roles={['ADMIN', 'AUDITOR']}>
+            {page(<AttackGraph />)}
+          </ProtectedRoute>
+        )
       },
       {
         path: 'remediations',
-        element: page(<Remediations />)
+        element: (
+          <ProtectedRoute roles={['ADMIN', 'AUDITOR']}>
+            {page(<Remediations />)}
+          </ProtectedRoute>
+        )
       },
       {
         path: '*',
@@ -79,6 +100,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: page(<Login />)
+  },
+  {
+    path: '/register',
+    element: page(<Register />)
   }
 ]);
 

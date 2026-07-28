@@ -1,3 +1,7 @@
+/**
+ * Endpoints de lectura del Dashboard. Reutilizan los mismos filtros que las
+ * consultas y exportaciones para mostrar cifras coherentes.
+ */
 import { getDashboardStats } from '../repositories/dashboard.repository.js';
 import { findRecentFindings } from '../repositories/finding.repository.js';
 import {

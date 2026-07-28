@@ -1,3 +1,7 @@
+/**
+ * Convierte hallazgos persistidos en nodos, aristas y rutas explicables.
+ * Cada Map deduplica por identidad y cada arista conserva su justificación.
+ */
 const normalize = (value) => String(value ?? '').trim().toLowerCase();
 const compact = (value, limit = 240) => {
   const text = String(value ?? '').trim().replace(/\s+/g, ' ');

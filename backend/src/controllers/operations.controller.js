@@ -1,3 +1,7 @@
+/**
+ * CRUD de Proyecto → Auditoría → Activo → Hallazgo. Las mutaciones guardan el
+ * cambio y su AuditLog dentro de una misma transacción.
+ */
 import { z } from 'zod';
 import { prisma } from '../database/prisma.js';
 

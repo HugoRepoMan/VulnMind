@@ -1,3 +1,7 @@
+/**
+ * Recupera reglas activas y compara sus condiciones contra la inferencia
+ * normalizada producida por el Motor.
+ */
 import { prisma } from '../database/prisma.js';
 
 export const matchesCondition = (condition, inference) =>

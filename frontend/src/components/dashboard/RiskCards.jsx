@@ -1,3 +1,4 @@
+/** Tarjetas que formatean métricas ya agregadas por PostgreSQL. */
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, ShieldAlert, Activity, CheckCircle } from 'lucide-react';
 

@@ -1,5 +1,6 @@
+/** Autentica, conserva la sesión recibida y lleva al usuario al Dashboard. */
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '@/services/api';
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const token = useAppStore((state) => state.token);
   const setSession = useAppStore((state) => state.setSession);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -45,6 +47,11 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {location.state?.notice && (
+            <div className="mb-4 rounded-md bg-green-500/10 p-3 text-sm text-green-600">
+              {location.state.notice}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
@@ -82,6 +89,10 @@ export default function Login() {
             <Button type="submit" className="w-full" disabled={mutation.isPending}>
               {mutation.isPending ? 'Ingresando…' : 'Iniciar sesión'}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              ¿No tienes una cuenta?{' '}
+              <Link className="font-medium text-primary underline" to="/register">Regístrate</Link>
+            </p>
           </form>
         </CardContent>
       </Card>

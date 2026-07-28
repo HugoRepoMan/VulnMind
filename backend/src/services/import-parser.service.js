@@ -1,3 +1,7 @@
+/**
+ * Parsers puros de Nmap, CSV y JSON hacia `{asset, rawData}`. No escriben en BD:
+ * el controlador decide luego qué filas pasan por el Motor Inteligente.
+ */
 const MAX_RECORDS = 1000;
 
 const decodeXml = (value = '') => value
@@ -86,6 +90,7 @@ const makeRecord = ({
 };
 
 const parseCsvRows = (content) => {
+  // Recorrido carácter a carácter para respetar comas y saltos entre comillas.
   const rows = [];
   let row = [];
   let cell = '';
@@ -178,6 +183,7 @@ export const parseCsvImport = (content) => {
 };
 
 export const parseNmapImport = (content) => {
+  // Las entidades XML se rechazan para impedir lecturas de archivos del servidor.
   if (!/<nmaprun\b/i.test(content)) throw new Error('XML inválido: no es una salida de Nmap');
   if (/<!ENTITY\b/i.test(content)) {
     throw new Error('XML rechazado: no se permiten entidades personalizadas');

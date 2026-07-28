@@ -1,3 +1,7 @@
+/**
+ * Cliente Prisma compartido. Una instancia evita abrir un pool nuevo por cada
+ * controlador y el adaptador conecta todas las consultas con PostgreSQL.
+ */
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 

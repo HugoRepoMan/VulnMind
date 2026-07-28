@@ -1,3 +1,7 @@
+/**
+ * Consultas agregadas del Dashboard. Esta capa conoce Prisma; el controlador
+ * sólo transforma HTTP en filtros.
+ */
 import { prisma } from '../database/prisma.js';
 import {
   buildAssetWhere,

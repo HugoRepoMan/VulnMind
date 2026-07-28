@@ -342,3 +342,57 @@ Pruebas y validación:
   aislamiento por auditoría; idempotencia; asociación exacta de Log4Shell;
   ausencia de aristas inventadas; posiciones ELK válidas/no superpuestas;
   resaltado exacto de rutas; colapso y ajuste a pantalla.
+
+## Administración de usuarios y acceso
+
+Estado: completada el 27 de julio de 2026.
+
+- Añadida gestión de usuarios exclusiva para administradores desde
+  Configuración.
+- Los administradores pueden crear cuentas con roles `ADMIN`, `AUDITOR` o
+  `VIEWER`, cambiar roles, activar/desactivar cuentas y restablecer contraseñas.
+- Las contraseñas se validan y almacenan únicamente como hash bcrypt.
+- Las cuentas desactivadas no pueden iniciar sesión y sus tokens existentes
+  dejan de ser válidos inmediatamente.
+- Se impide desactivar la cuenta propia y desactivar o degradar al último
+  administrador activo.
+- Creación, cambio de permisos y restablecimiento de contraseña generan eventos
+  en `AuditLog`, sin registrar contraseñas.
+- Migración `20260727013000_user_administration` aplicada correctamente.
+
+Verificación:
+
+- Backend: 38/38 pruebas, lint y build correctos.
+- Frontend: 7/7 pruebas, lint sin errores y build PWA correcto.
+- Verificados permisos `403` para usuarios no administradores, correo duplicado,
+  cambio de rol, restablecimiento de contraseña, invalidación de sesiones y
+  protección de la cuenta administrativa.
+
+## Registro público con acceso mínimo
+
+Estado: completado el 27 de julio de 2026.
+
+- Añadido `/register` y el endpoint público `POST /api/auth/register`.
+- Toda cuenta registrada se crea activa con rol `VIEWER`; los campos `role` o
+  `active` enviados por el cliente se ignoran.
+- El registro usa la misma protección bcrypt de las cuentas administrativas y
+  genera el evento `USER_SELF_REGISTERED` en `AuditLog`.
+- Un `VIEWER` sólo puede abrir el Dashboard. La navegación no muestra
+  auditorías, conocimiento, rutas de ataque, remediaciones o configuración.
+- Las guardas de React redirigen al Dashboard si un `VIEWER` intenta abrir
+  manualmente una ruta operativa.
+- La API también devuelve `403` para esas operaciones; ocultar enlaces no se
+  utiliza como mecanismo de seguridad.
+- Se mantienen únicamente los endpoints de estadísticas, hallazgos recientes y
+  listas necesarias para los filtros del Dashboard.
+- El administrador puede promover posteriormente la cuenta a `AUDITOR` desde
+  Configuración → Usuarios y acceso.
+
+Verificación:
+
+- El intento de autorregistrarse enviando `role: ADMIN` produjo una cuenta
+  `VIEWER`.
+- La cuenta pudo consultar Dashboard, filtros y hallazgos recientes.
+- La misma cuenta recibió `403` al consultar reglas, hallazgos operativos y el
+  grafo de ataque.
+- Backend: 39/39 pruebas aprobadas.

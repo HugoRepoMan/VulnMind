@@ -1,3 +1,7 @@
+/**
+ * Orquesta inferencia → reglas → riesgo → correlación → recomendaciones →
+ * explicación y devuelve un resultado completo para persistir.
+ */
 import InferenceEngine from './inference/index.js';
 import KnowledgeEngine from './knowledge/index.js';
 import ScoringEngine from './scoring/index.js';

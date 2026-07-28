@@ -1,3 +1,4 @@
+/** Arista direccional que etiqueta al enfocar y distingue correlaciones por regla. */
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from '@xyflow/react';
 
 export default function AttackEdge({

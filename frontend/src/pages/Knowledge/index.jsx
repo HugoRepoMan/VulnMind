@@ -1,3 +1,4 @@
+/** Consulta reglas y habilita su edición/importación únicamente para ADMIN. */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, FileJson, Pencil, PlusCircle, Power, Trash2, Upload, X } from 'lucide-react';

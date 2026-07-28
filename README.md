@@ -1,5 +1,8 @@
 # VulnMind
 
+> Para ubicar rápidamente las funciones, flujos, permisos y archivos
+> principales, consulta [`docs/GUIA_CODIGO.md`](docs/GUIA_CODIGO.md).
+
 VulnMind es una PWA para auditorías de ciberseguridad. Gestiona proyectos,
 auditorías y activos; procesa hallazgos con reglas persistentes; calcula riesgo,
 correlación y recomendaciones; y conserva una explicación completa de cada

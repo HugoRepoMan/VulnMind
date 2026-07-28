@@ -1,3 +1,4 @@
+/** Nodo SOC con severidad, tooltip, handles y control de colapso del activo. */
 import { Handle, Position } from '@xyflow/react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 

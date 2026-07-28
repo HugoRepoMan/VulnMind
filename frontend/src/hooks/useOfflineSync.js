@@ -1,3 +1,4 @@
+/** Reactiva la cola al volver Internet y publica contadores para la interfaz. */
 import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';

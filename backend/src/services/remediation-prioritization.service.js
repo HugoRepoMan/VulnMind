@@ -1,3 +1,7 @@
+/**
+ * Prioriza correcciones por reducción, criticidad, exposición, cadenas rotas y
+ * esfuerzo. Todos los factores proceden de activos, hallazgos o reglas reales.
+ */
 import { isExternallyReachable } from './attack-graph.service.js';
 
 const criticalityWeight = { LOW: 0.75, MEDIUM: 1, HIGH: 1.25, CRITICAL: 1.5 };

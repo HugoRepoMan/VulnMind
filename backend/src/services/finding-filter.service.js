@@ -1,3 +1,7 @@
+/**
+ * Filtros compartidos por Dashboard, listados y exportación, evitando que un
+ * mismo projectId/auditId/periodo tenga interpretaciones diferentes.
+ */
 import { z } from 'zod';
 
 export const findingFilterSchema = z.object({

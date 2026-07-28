@@ -1,3 +1,4 @@
+/** IndexedDB local para borradores y cola, aislada mediante userId. */
 import Dexie from 'dexie';
 
 export const db = new Dexie('VulnMindDB');

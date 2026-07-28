@@ -7,6 +7,8 @@ const ids = {
   user: '10000000-0000-4000-8000-000000000001',
   viewer: '10000000-0000-4000-8000-000000000004',
   admin: '10000000-0000-4000-8000-000000000005',
+  managedUser: '10000000-0000-4000-8000-000000000006',
+  registeredUser: '10000000-0000-4000-8000-000000000007',
   project: '10000000-0000-4000-8000-000000000002',
   audit: '10000000-0000-4000-8000-000000000003',
   asset: 'integration-asset',
@@ -110,7 +112,13 @@ describe('VulnMind PostgreSQL API integration', () => {
   afterAll(async () => {
     await prisma.project.deleteMany({ where: { id: ids.project } });
     await prisma.knowledgeRule.deleteMany({ where: { id: ids.rule } });
-    await prisma.user.deleteMany({ where: { id: { in: [ids.user, ids.viewer, ids.admin] } } });
+    await prisma.user.deleteMany({
+      where: {
+        id: {
+          in: [ids.user, ids.viewer, ids.admin, ids.managedUser, ids.registeredUser]
+        }
+      }
+    });
     await disconnectPrisma();
   });
 
@@ -132,6 +140,131 @@ describe('VulnMind PostgreSQL API integration', () => {
       role: 'AUDITOR'
     });
     expect(response.body.data.user.passwordHash).toBeUndefined();
+  });
+
+  test('self-registers only VIEWER accounts and limits them to dashboard data', async () => {
+    const registration = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'self-registered@vulnmind.local',
+        password: 'self-registration-password',
+        role: 'ADMIN',
+        active: false
+      });
+    expect(registration.status).toBe(201);
+    expect(registration.body.data.user).toMatchObject({
+      email: 'self-registered@vulnmind.local',
+      role: 'VIEWER',
+      active: true
+    });
+    ids.registeredUser = registration.body.data.user.id;
+
+    const login = await request(app).post('/api/auth/login').send({
+      email: 'self-registered@vulnmind.local',
+      password: 'self-registration-password'
+    });
+    expect(login.status).toBe(200);
+    const token = login.body.data.token;
+
+    const [dashboard, recent, projects, graph, rules, findings] = await Promise.all([
+      request(app).get('/api/dashboard/stats').set('Authorization', `Bearer ${token}`),
+      request(app).get('/api/findings/recent').set('Authorization', `Bearer ${token}`),
+      request(app).get('/api/projects').set('Authorization', `Bearer ${token}`),
+      request(app).get(`/api/attack-graph?auditId=${ids.audit}`).set('Authorization', `Bearer ${token}`),
+      request(app).get('/api/knowledge/rules').set('Authorization', `Bearer ${token}`),
+      request(app).get('/api/findings').set('Authorization', `Bearer ${token}`)
+    ]);
+    expect(dashboard.status).toBe(200);
+    expect(recent.status).toBe(200);
+    expect(projects.status).toBe(200);
+    expect(graph.status).toBe(403);
+    expect(rules.status).toBe(403);
+    expect(findings.status).toBe(403);
+
+    const duplicate = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'self-registered@vulnmind.local',
+        password: 'self-registration-password'
+      });
+    expect(duplicate.status).toBe(409);
+  });
+
+  test('allows only administrators to manage users and invalidates disabled sessions', async () => {
+    const forbidden = await request(app)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${viewerToken}`);
+    expect(forbidden.status).toBe(403);
+
+    const created = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'managed-integration@vulnmind.local',
+        password: 'temporary-password',
+        role: 'VIEWER'
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.data).toMatchObject({
+      email: 'managed-integration@vulnmind.local',
+      role: 'VIEWER',
+      active: true
+    });
+    const managedId = created.body.data.id;
+    ids.managedUser = managedId;
+    expect(created.body.data.passwordHash).toBeUndefined();
+
+    const duplicate = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'managed-integration@vulnmind.local',
+        password: 'another-password',
+        role: 'AUDITOR'
+      });
+    expect(duplicate.status).toBe(409);
+
+    const updated = await request(app)
+      .patch(`/api/users/${managedId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: 'AUDITOR' });
+    expect(updated.status).toBe(200);
+    expect(updated.body.data.role).toBe('AUDITOR');
+
+    const reset = await request(app)
+      .post(`/api/users/${managedId}/reset-password`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: 'replacement-password' });
+    expect(reset.status).toBe(200);
+
+    const login = await request(app).post('/api/auth/login').send({
+      email: 'managed-integration@vulnmind.local',
+      password: 'replacement-password'
+    });
+    expect(login.status).toBe(200);
+
+    const disabled = await request(app)
+      .patch(`/api/users/${managedId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ active: false });
+    expect(disabled.status).toBe(200);
+    expect(disabled.body.data.active).toBe(false);
+
+    const invalidatedSession = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${login.body.data.token}`);
+    expect(invalidatedSession.status).toBe(401);
+    const disabledLogin = await request(app).post('/api/auth/login').send({
+      email: 'managed-integration@vulnmind.local',
+      password: 'replacement-password'
+    });
+    expect(disabledLogin.status).toBe(401);
+
+    const selfDisable = await request(app)
+      .patch(`/api/users/${ids.admin}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ active: false });
+    expect(selfDisable.status).toBe(409);
   });
 
   test('rejects protected requests without a token', async () => {
@@ -351,7 +484,7 @@ describe('VulnMind PostgreSQL API integration', () => {
 
     const listed = await request(app)
       .get('/api/knowledge/rules?active=false&search=Administrative')
-      .set('Authorization', `Bearer ${viewerToken}`);
+      .set('Authorization', `Bearer ${auditorToken}`);
     expect(listed.status).toBe(200);
     expect(listed.body.data.map(({ id }) => id)).toContain(ruleId);
 
@@ -459,9 +592,9 @@ describe('VulnMind PostgreSQL API integration', () => {
     const assetId = assetResponse.body.data.id;
 
     const [projectDetail, auditDetail, assetDetail] = await Promise.all([
-      request(app).get(`/api/projects/${projectId}`).set('Authorization', `Bearer ${viewerToken}`),
-      request(app).get(`/api/audits/${auditId}`).set('Authorization', `Bearer ${viewerToken}`),
-      request(app).get(`/api/assets/${assetId}`).set('Authorization', `Bearer ${viewerToken}`)
+      request(app).get(`/api/projects/${projectId}`).set('Authorization', `Bearer ${auditorToken}`),
+      request(app).get(`/api/audits/${auditId}`).set('Authorization', `Bearer ${auditorToken}`),
+      request(app).get(`/api/assets/${assetId}`).set('Authorization', `Bearer ${auditorToken}`)
     ]);
 
     expect(projectDetail.body.data.audits).toHaveLength(1);
@@ -499,7 +632,7 @@ describe('VulnMind PostgreSQL API integration', () => {
       .send({ name: '' });
     const missing = await request(app)
       .get('/api/assets/missing-asset')
-      .set('Authorization', `Bearer ${viewerToken}`);
+      .set('Authorization', `Bearer ${auditorToken}`);
 
     expect(invalid.status).toBe(400);
     expect(missing.status).toBe(404);
@@ -606,7 +739,7 @@ describe('VulnMind PostgreSQL API integration', () => {
   test('exposes Push availability without leaking VAPID private material', async () => {
     const configuration = await request(app)
       .get('/api/notifications/configuration')
-      .set('Authorization', `Bearer ${viewerToken}`);
+      .set('Authorization', `Bearer ${auditorToken}`);
 
     expect(configuration.status).toBe(200);
     expect(configuration.body.data).toMatchObject({

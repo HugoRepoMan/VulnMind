@@ -1,3 +1,4 @@
+// Configura SPA/PWA, alias `@` hacia src y jsdom para pruebas de componentes.
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'

@@ -1,3 +1,4 @@
+/** Configuración de Web Push, cola offline y administración de usuarios ADMIN. */
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { db } from '@/db';
 import { notificationService } from '@/services/api';
 import { discardQueueItem, retryQueueItem } from '@/services/offline';
 import { useAppStore } from '@/store';
+import UserAdministration from './UserAdministration';
 
 const statusLabels = {
   pending: 'Pendiente',
@@ -103,6 +105,8 @@ export default function Settings() {
 
       {notice && <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-600">{notice}</div>}
       {mutationError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{apiError(mutationError)}</div>}
+
+      <UserAdministration />
 
       <Card>
         <CardHeader>

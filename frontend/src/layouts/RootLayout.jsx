@@ -1,3 +1,4 @@
+/** Armazón autenticado con navegación fija y contenido de la ruta hija. */
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar.jsx';
 import Navbar from '../components/layout/Navbar.jsx';

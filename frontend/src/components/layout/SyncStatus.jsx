@@ -1,3 +1,4 @@
+/** Aviso visible sólo si existe desconexión, trabajo pendiente o conflicto local. */
 import { CloudOff, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 

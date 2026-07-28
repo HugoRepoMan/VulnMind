@@ -1,3 +1,4 @@
+// Convierte el payload Web Push en una notificación visible del sistema.
 self.addEventListener('push', (event) => {
   let data = {};
   try {

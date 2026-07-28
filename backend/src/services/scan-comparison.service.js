@@ -1,3 +1,7 @@
+/**
+ * Compara dos instantáneas mediante claves estables de servicio/vulnerabilidad
+ * y clasifica nuevos, persistentes, corregidos y reabiertos.
+ */
 const resolvedStatuses = new Set(['RESOLVED', 'FALSE_POSITIVE']);
 
 const normalize = (value) => String(value ?? '').trim().toLowerCase();

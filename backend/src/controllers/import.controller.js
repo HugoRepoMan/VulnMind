@@ -1,3 +1,7 @@
+/**
+ * Importación Nmap/CSV/JSON. Normaliza cada fila y la procesa con el mismo Motor
+ * Inteligente de la creación manual, conservando idempotencia por contenido.
+ */
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { prisma } from '../database/prisma.js';

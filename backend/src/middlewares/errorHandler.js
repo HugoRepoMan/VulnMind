@@ -1,3 +1,7 @@
+/**
+ * Traduce fallos internos a JSON: validación→400, conflicto Prisma→409,
+ * statusCode de negocio→su código y errores inesperados→500.
+ */
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 

@@ -1,3 +1,4 @@
+/** Gráfico del riesgo promedio y pico por día recibido desde la API. */
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
 

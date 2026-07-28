@@ -1,3 +1,7 @@
+/**
+ * Valida los dos activos solicitados y delega la comparación entre escaneos al
+ * servicio determinista; el controlador no inventa diferencias.
+ */
 import { z } from 'zod';
 import { prisma } from '../database/prisma.js';
 import { compareAssetScans } from '../services/scan-comparison.service.js';

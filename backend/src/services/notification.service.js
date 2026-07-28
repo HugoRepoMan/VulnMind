@@ -1,3 +1,7 @@
+/**
+ * Configura Web Push con VAPID y envía alertas críticas. Si el navegador indica
+ * que una suscripción expiró, se elimina para no reintentar para siempre.
+ */
 import webPush from 'web-push';
 import { prisma } from '../database/prisma.js';
 

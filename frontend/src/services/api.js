@@ -1,3 +1,7 @@
+/**
+ * Cliente HTTP único. Agrupa endpoints por dominio y adjunta el JWT almacenado
+ * en Zustand antes de cada petición.
+ */
 import axios from 'axios';
 import { useAppStore } from '@/store';
 
@@ -21,6 +25,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 401 implica token vencido/inválido o una cuenta que fue desactivada.
     if (error.response?.status === 401) {
       useAppStore.getState().logout();
     }
@@ -34,8 +39,31 @@ export const authService = {
     const response = await api.post('/auth/login', credentials);
     return response.data.data;
   },
+  register: async (credentials) => {
+    const response = await api.post('/auth/register', credentials);
+    return response.data.data;
+  },
   getSession: async () => {
     const response = await api.get('/auth/me');
+    return response.data.data;
+  }
+};
+
+export const usersService = {
+  getUsers: async () => {
+    const response = await api.get('/users');
+    return response.data.data;
+  },
+  createUser: async (payload) => {
+    const response = await api.post('/users', payload);
+    return response.data.data;
+  },
+  updateUser: async ({ id, ...payload }) => {
+    const response = await api.patch(`/users/${id}`, payload);
+    return response.data.data;
+  },
+  resetPassword: async ({ id, password }) => {
+    const response = await api.post(`/users/${id}/reset-password`, { password });
     return response.data.data;
   }
 };

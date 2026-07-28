@@ -1,3 +1,7 @@
+/**
+ * Caso de uso central de hallazgos: valida, ejecuta el Motor y usa una huella
+ * canónica para que un reintento no vuelva a insertar el mismo dato.
+ */
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';

@@ -7,24 +7,48 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 const ids = {
+  // IDs fijos: permiten ejecutar el seed varias veces sin crear cuentas duplicadas.
   user: '00000000-0000-4000-8000-000000000001',
+  auditor: '00000000-0000-4000-8000-000000000004',
+  viewer: '00000000-0000-4000-8000-000000000005',
   project: '00000000-0000-4000-8000-000000000002',
   audit: '00000000-0000-4000-8000-000000000003'
 };
 
 async function main() {
-  const passwordHash = await bcrypt.hash('vulnmind-dev-only', 12);
-
-  await prisma.user.upsert({
-    where: { email: 'admin@vulnmind.local' },
-    update: { role: 'ADMIN' },
-    create: {
+  // Estas cuentas existen sólo para desarrollo y demostración local. Cada
+  // contraseña se cifra antes de tocar PostgreSQL; nunca se guarda texto plano.
+  const developmentUsers = [
+    {
       id: ids.user,
       email: 'admin@vulnmind.local',
-      passwordHash,
+      password: 'vulnmind-dev-only',
       role: 'ADMIN'
+    },
+    {
+      id: ids.auditor,
+      email: 'auditor@vulnmind.local',
+      password: 'auditor-dev-only',
+      role: 'AUDITOR'
+    },
+    {
+      id: ids.viewer,
+      email: 'viewer@vulnmind.local',
+      password: 'viewer-dev-only',
+      role: 'VIEWER'
     }
-  });
+  ];
+
+  for (const developmentUser of developmentUsers) {
+    const { password, ...userData } = developmentUser;
+    const passwordHash = await bcrypt.hash(password, 12);
+    // upsert restaura rol, contraseña y estado si la base ya tenía la cuenta.
+    await prisma.user.upsert({
+      where: { email: userData.email },
+      update: { passwordHash, role: userData.role, active: true },
+      create: { ...userData, passwordHash, active: true }
+    });
+  }
 
   await prisma.project.upsert({
     where: { id: ids.project },
