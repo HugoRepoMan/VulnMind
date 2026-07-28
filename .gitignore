@@ -3,6 +3,7 @@ dist/
 dev-dist/
 build/
 .env
+.vercel/
 .DS_Store
 coverage/
 *.log
