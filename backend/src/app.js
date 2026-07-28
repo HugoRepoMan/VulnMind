@@ -18,6 +18,22 @@ app.use(helmet());
 app.use(express.json({ limit: '3mb' }));
 app.use(morgan('dev'));
 
+// Página de entrada útil al abrir directamente el dominio de la API.
+app.get('/', (req, res) => {
+  res.status(200).json({
+    name: 'VulnMind API',
+    status: 'OK',
+    health: '/health',
+    api: '/api'
+  });
+});
+
+// Evita que los navegadores conviertan la petición automática del favicon en
+// un 404 HTML con advertencias CSP de Helmet.
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // Basic health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'VulnMind API is running' });
