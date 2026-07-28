@@ -8,23 +8,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
+      devOptions: {
+        enabled: true
+      },
+      manifest: false,
       workbox: {
         importScripts: ['push-sw.js'],
         cleanupOutdatedCaches: true
-      },
-      manifest: {
-        name: 'VulnMind SOC',
-        short_name: 'VulnMind',
-        description: 'Asistente inteligente para auditorías de ciberseguridad',
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: 'favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
-          }
-        ]
       }
     })
   ],

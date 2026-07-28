@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Shield, Activity, BookOpen, FileText, Settings, User } from 'lucide-react';
+import { Shield, Activity, BookOpen, FileText, ListChecks, Network, Settings, User } from 'lucide-react';
 import { useAppStore } from '@/store';
 
 export default function Sidebar() {
@@ -9,6 +9,8 @@ export default function Sidebar() {
   const links = [
     { to: '/', label: 'Dashboard', icon: Activity, end: true },
     ...(canAudit ? [{ to: '/audits', label: 'Auditorías', icon: FileText }] : []),
+    { to: '/attack-graph', label: 'Rutas de ataque', icon: Network },
+    { to: '/remediations', label: 'Remediaciones', icon: ListChecks },
     { to: '/knowledge', label: 'Conocimiento', icon: BookOpen },
     { to: '/settings', label: 'Configuración', icon: Settings }
   ];

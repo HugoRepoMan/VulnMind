@@ -38,7 +38,8 @@ const ensureAsset = async ({ audit, asset, actorUserId }) => {
         auditId: audit.id,
         name: asset.name,
         ip: asset.ip,
-        type: asset.type
+        type: asset.type,
+        criticality: asset.criticality
       }
     });
     await tx.auditLog.create({

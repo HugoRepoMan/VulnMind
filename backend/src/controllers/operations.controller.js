@@ -5,6 +5,7 @@ const idSchema = z.string().trim().min(1);
 const projectStatus = z.enum(['ACTIVE', 'ARCHIVED']);
 const auditStatus = z.enum(['DRAFT', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']);
 const assetStatus = z.enum(['ACTIVE', 'INACTIVE', 'REMOVED']);
+const assetCriticality = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 const findingStatus = z.enum(['OPEN', 'IN_REVIEW', 'RESOLVED', 'ACCEPTED', 'FALSE_POSITIVE']);
 
 const projectCreateSchema = z.object({
@@ -29,6 +30,7 @@ const assetCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   ip: z.string().trim().max(255).nullable().optional(),
   type: z.string().trim().min(1).max(80).optional(),
+  criticality: assetCriticality.optional(),
   status: assetStatus.optional()
 });
 const assetUpdateSchema = assetCreateSchema.partial().refine((value) => Object.keys(value).length, {

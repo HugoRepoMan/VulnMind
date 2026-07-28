@@ -15,7 +15,8 @@ export const createFindingSchema = z.object({
     os: z.string().trim().max(120).nullable().optional(),
     service: z.string().trim().max(120).nullable().optional(),
     version: z.string().trim().max(120).nullable().optional(),
-    vulnerability: z.string().trim().max(160).nullable().optional()
+    vulnerability: z.string().trim().max(160).nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(80)).max(50).optional()
   }).passthrough()
 });
 

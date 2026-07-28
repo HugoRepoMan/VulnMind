@@ -126,21 +126,23 @@ model Audit {
 }
 
 model Asset {
-  id        String      @id @default(uuid())
-  auditId   String
-  audit     Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
-  name      String
-  ip        String?
-  type      String      @default("host")
-  status    AssetStatus @default(ACTIVE)
-  riskScore Float       @default(0)
-  findings  Finding[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  auditId     String
+  audit       Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  name        String
+  ip          String?
+  type        String      @default("host")
+  criticality String      @default("MEDIUM")
+  status      AssetStatus @default(ACTIVE)
+  riskScore   Float       @default(0)
+  findings    Finding[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@unique([auditId, name])
   @@index([auditId])
   @@index([status])
+  @@index([criticality])
   @@index([riskScore])
   @@schema("public")
 }
@@ -192,23 +194,27 @@ model AuditLog {
 }
 
 model KnowledgeRule {
-  id             String            @id @default(uuid())
-  name           String
-  type           String
-  condition      Json
-  baseRiskScore  Float
-  mitreIds       String[]          @default([])
-  owaspIds       String[]          @default([])
-  cweIds         String[]          @default([])
-  recommendation String
-  priority       Int               @default(0)
-  active         Boolean           @default(true)
-  analyses       FindingAnalysis[] @relation("AnalysisRules")
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id                String            @id @default(uuid())
+  code              String?           @unique
+  name              String
+  type              String
+  condition         Json
+  baseRiskScore     Float
+  mitreIds          String[]          @default([])
+  owaspIds          String[]          @default([])
+  cweIds            String[]          @default([])
+  recommendation    String
+  remediationEffort String            @default("MEDIUM")
+  dependencies      String[]          @default([])
+  priority          Int               @default(0)
+  active            Boolean           @default(true)
+  analyses          FindingAnalysis[] @relation("AnalysisRules")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([type, active])
   @@index([priority])
+  @@index([remediationEffort])
   @@schema("knowledge")
 }
 

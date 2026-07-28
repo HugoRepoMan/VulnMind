@@ -26,6 +26,17 @@ const toApplicationServerKey = (value) => {
 const apiError = (error) =>
   error.response?.data?.message || error.message || 'No se pudo completar la operación.';
 
+const getServiceWorkerRegistration = async () => {
+  const timeout = new Promise((_, reject) => {
+    window.setTimeout(
+      () => reject(new Error('El service worker no pudo iniciarse. Recarga la página e inténtalo de nuevo.')),
+      10000
+    );
+  });
+
+  return Promise.race([navigator.serviceWorker.ready, timeout]);
+};
+
 export default function Settings() {
   const queryClient = useQueryClient();
   const currentUserId = useAppStore((state) => state.user?.id);
@@ -50,7 +61,7 @@ export default function Settings() {
       }
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') throw new Error('El permiso de notificaciones fue rechazado.');
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getServiceWorkerRegistration();
       const current = await registration.pushManager.getSubscription();
       const subscription = current || await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -66,7 +77,7 @@ export default function Settings() {
 
   const disablePush = useMutation({
     mutationFn: async () => {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getServiceWorkerRegistration();
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         await notificationService.unsubscribe(subscription.endpoint);

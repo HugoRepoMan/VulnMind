@@ -11,6 +11,13 @@ decisión.
 - CRUD operativo y base de conocimiento en PostgreSQL.
 - Motor idempotente y explicable con historial, MITRE, OWASP y CWE.
 - Importación Nmap XML, CSV y JSON con errores por registro.
+- Comparación entre dos escaneos reales del mismo activo: hallazgos nuevos,
+  persistentes, corregidos y reabiertos; cambios de puertos, servicios, versiones
+  y riesgo.
+- Grafo explicable de rutas potenciales construido desde activos, servicios,
+  vulnerabilidades, identidades, evidencia y correlaciones persistidas.
+- Motor de priorización de remediaciones con reducción marginal de riesgo,
+  criticidad de activos, exposición, rutas afectadas, esfuerzo y dependencias.
 - Borradores y cola offline en IndexedDB con reintentos y conflictos.
 - Notificaciones Web Push para hallazgos críticos.
 - Dashboard real con filtros de proyecto, auditoría, activo y 7/30/90 días.
@@ -83,9 +90,54 @@ JSON puede ser una lista de hallazgos o una colección de hosts:
 }
 ```
 
+Para enriquecer el grafo de rutas, CSV y JSON también admiten señales opcionales
+como `evidence`, `username`, `privilege`, `credentials`, `targetAsset`,
+`connectedTo` y `exposure`. El nodo **Internet** sólo aparece cuando el registro
+indica alcance externo o el activo usa una IP pública.
+
+La criticidad de un activo (`LOW`, `MEDIUM`, `HIGH` o `CRITICAL`) puede definirse
+al crearlo o mediante el campo `criticality` de una importación. Las reglas de la
+base de conocimiento permiten registrar `remediationEffort` y `dependencies`.
+La pantalla **Remediaciones** calcula el impacto marginal con esos valores y
+expone la fórmula completa utilizada para ordenar las acciones.
+
+## Importación de reglas JSON
+
+Los administradores pueden importar reglas desde **Conocimiento → Importar
+reglas JSON**. Se admite una lista directa o un objeto con `rules` o
+`knowledgeRules`. `baseRisk` se acepta como alias de `baseRiskScore`, el tipo se
+infiere cuando no está presente y `code` se usa para actualizar una regla
+existente sin duplicarla. Las condiciones `tagsAny` y `tagsAll` se evalúan
+contra las etiquetas persistidas del hallazgo.
+
+```json
+{
+  "knowledgeRules": [
+    {
+      "code": "KB-FTP-001",
+      "name": "Servicio FTP expuesto",
+      "condition": { "port": 21 },
+      "baseRisk": 30,
+      "priority": 40,
+      "recommendation": "Deshabilitar FTP y utilizar SFTP.",
+      "active": true
+    }
+  ]
+}
+```
+
+Las secciones con otros modelos, como `correlationRules`, no se importan como
+reglas de conocimiento y aparecen explícitamente como advertencias.
+
 La reimportación del mismo contenido conserva claves deterministas y recupera
 los hallazgos existentes. Nmap XML sólo importa hosts activos y puertos abiertos;
 las entidades XML personalizadas se rechazan.
+
+Para comparar escaneos, crea dos auditorías dentro del mismo proyecto e importa
+en cada una la captura correspondiente. En **Auditorías → Comparación inteligente
+entre escaneos**, selecciona la auditoría y el activo inicial, y después la
+auditoría y el activo posterior. El análisis se calcula bajo demanda a partir de
+los hallazgos guardados en PostgreSQL.
 
 ## Desarrollo y verificación
 

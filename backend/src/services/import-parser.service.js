@@ -26,7 +26,23 @@ const optionalPort = (value) => {
   return port;
 };
 
-const makeRecord = ({ name, ip, type = 'host', port, os, service, version, vulnerability, evidence }) => {
+const normalizeCriticality = (value) => {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    if (numeric >= 5) return 'CRITICAL';
+    if (numeric >= 4) return 'HIGH';
+    if (numeric >= 2) return 'MEDIUM';
+    return 'LOW';
+  }
+  const normalized = String(value || 'MEDIUM').toUpperCase();
+  return ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(normalized) ? normalized : 'MEDIUM';
+};
+
+const makeRecord = ({
+  name, ip, type = 'host', criticality = 'MEDIUM', port, os, service, version, vulnerability, evidence,
+  username, privilege, credentials, targetAsset, connectedTo, relatedAsset, exposure,
+  internetFacing, tags, protocol, externalId, title, description, source
+}) => {
   const assetName = optionalText(name) || optionalText(ip);
   if (!assetName) throw new Error('El registro no contiene nombre de activo ni dirección IP');
 
@@ -36,7 +52,22 @@ const makeRecord = ({ name, ip, type = 'host', port, os, service, version, vulne
     service: optionalText(service),
     version: optionalText(version),
     vulnerability: optionalText(vulnerability),
-    ...(optionalText(evidence) ? { evidence: optionalText(evidence) } : {})
+    ...(optionalText(evidence) ? { evidence: optionalText(evidence) } : {}),
+    ...(optionalText(username) ? { username: optionalText(username) } : {}),
+    ...(optionalText(privilege) ? { privilege: optionalText(privilege) } : {}),
+    ...(optionalText(credentials) ? { credentials: optionalText(credentials) } : {}),
+    ...(optionalText(targetAsset) ? { targetAsset: optionalText(targetAsset) } : {}),
+    ...(optionalText(connectedTo) ? { connectedTo: optionalText(connectedTo) } : {}),
+    ...(optionalText(exposure) ? { exposure: optionalText(exposure) } : {}),
+    ...(typeof internetFacing === 'boolean' ? { internetFacing } : {}),
+    ...(Array.isArray(tags) ? { tags: tags.map(optionalText).filter(Boolean).slice(0, 50) } :
+      optionalText(tags) ? { tags: optionalText(tags).split(/[|;]/).map((tag) => tag.trim()).filter(Boolean).slice(0, 50) } : {}),
+    ...(optionalText(protocol) ? { protocol: optionalText(protocol).toLowerCase() } : {}),
+    ...(optionalText(externalId) ? { externalId: optionalText(externalId) } : {}),
+    ...(optionalText(title) ? { title: optionalText(title) } : {}),
+    ...(optionalText(description) ? { description: optionalText(description) } : {}),
+    ...(optionalText(source) ? { source: optionalText(source) } : {}),
+    ...(optionalText(relatedAsset) ? { relatedAsset: optionalText(relatedAsset) } : {})
   };
 
   if (!rawData.port && !rawData.service && !rawData.vulnerability) {
@@ -47,7 +78,8 @@ const makeRecord = ({ name, ip, type = 'host', port, os, service, version, vulne
     asset: {
       name: assetName.slice(0, 120),
       ip: optionalText(ip)?.slice(0, 255) ?? null,
-      type: optionalText(type)?.slice(0, 80) ?? 'host'
+      type: optionalText(type)?.slice(0, 80) ?? 'host',
+      criticality: normalizeCriticality(criticality)
     },
     rawData
   };
@@ -117,12 +149,26 @@ export const parseCsvImport = (content) => {
           name: field(row, ['asset', 'activo', 'host', 'hostname', 'name', 'nombre']),
           ip: field(row, ['ip', 'address', 'direccion']),
           type: field(row, ['type', 'tipo']) || 'host',
+          criticality: field(row, ['criticality', 'criticidad']) || 'MEDIUM',
           port: field(row, ['port', 'puerto']),
           os: field(row, ['os', 'sistemaoperativo']),
           service: field(row, ['service', 'servicio']),
           version: field(row, ['version']),
           vulnerability: field(row, ['vulnerability', 'vulnerabilidad', 'cve']),
-          evidence: field(row, ['evidence', 'evidencia'])
+          evidence: field(row, ['evidence', 'evidencia']),
+          username: field(row, ['username', 'usuario', 'user', 'account', 'cuenta']),
+          privilege: field(row, ['privilege', 'privilegio', 'role', 'rol']),
+          credentials: field(row, ['credentials', 'credenciales', 'credential']),
+          targetAsset: field(row, ['targetasset', 'activodestino', 'destination', 'destino']),
+          connectedTo: field(row, ['connectedto', 'conectadoa']),
+          exposure: field(row, ['exposure', 'exposicion', 'scope', 'alcance']),
+          tags: field(row, ['tags', 'etiquetas']),
+          protocol: field(row, ['protocol', 'protocolo']),
+          externalId: field(row, ['externalid', 'idexterno']),
+          title: field(row, ['title', 'titulo']),
+          description: field(row, ['description', 'descripcion']),
+          source: field(row, ['source', 'fuente']),
+          relatedAsset: field(row, ['relatedasset', 'activorelacionado'])
         })
       };
     } catch (error) {
@@ -205,7 +251,8 @@ const flattenJson = (parsed) => {
         hostname: host.hostname,
         ip: host.ip || host.address,
         os: port.os || host.os,
-        type: host.type
+        type: host.type,
+        tags: port.tags || host.tags
       }));
     });
   }
@@ -231,14 +278,29 @@ export const parseJsonImport = (content) => {
         sourceIndex: index + 1,
         ...makeRecord({
           name: asset.name || row.assetName || row.asset || row.host || row.hostname || row.name,
-          ip: asset.ip || row.ip || row.address,
+          ip: asset.ip || row.assetIp || row.ip || row.address,
           type: asset.type || row.type || 'host',
+          criticality: asset.criticality || row.assetCriticality || row.criticality || 'MEDIUM',
           port: raw.port,
           os: raw.os || row.os,
           service: raw.service,
           version: raw.version,
           vulnerability: raw.vulnerability || raw.cve,
-          evidence: raw.evidence
+          evidence: raw.evidence,
+          username: raw.username || raw.user || raw.account,
+          privilege: raw.privilege || raw.role,
+          credentials: raw.credentials || raw.credential,
+          targetAsset: raw.targetAsset || raw.destination || raw.target,
+          connectedTo: raw.connectedTo,
+          exposure: raw.exposure || raw.scope || raw.networkScope,
+          internetFacing: raw.internetFacing ?? raw.internetExposed ?? raw.public,
+          tags: raw.tags,
+          protocol: raw.protocol,
+          externalId: raw.externalId,
+          title: raw.title,
+          description: raw.description,
+          source: raw.source,
+          relatedAsset: raw.relatedAsset
         })
       };
     } catch (error) {

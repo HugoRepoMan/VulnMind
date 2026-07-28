@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ScanComparison from '@/components/audits/ScanComparison';
 import { findingsService, importService, operationsService } from '@/services/api';
 import {
   clearFindingDraft,
@@ -27,7 +28,7 @@ export default function Audits() {
   const [notice, setNotice] = useState('');
   const [projectName, setProjectName] = useState('');
   const [auditName, setAuditName] = useState('');
-  const [assetForm, setAssetForm] = useState({ name: '', ip: '' });
+  const [assetForm, setAssetForm] = useState({ name: '', ip: '', criticality: 'MEDIUM' });
   const [findingForm, setFindingForm] = useState({ assetId: '', port: '', vulnerability: '' });
   const [draftReady, setDraftReady] = useState(false);
   const [importForm, setImportForm] = useState({ format: 'nmap', file: null });
@@ -108,7 +109,11 @@ export default function Audits() {
     mutationFn: operationsService.createAsset,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets', auditId] });
-      setAssetForm({ name: '', ip: '' });
+      queryClient.invalidateQueries({ queryKey: ['comparisonAssets', auditId] });
+      queryClient.invalidateQueries({ queryKey: ['scanComparison'] });
+      queryClient.invalidateQueries({ queryKey: ['attackGraph'] });
+      queryClient.invalidateQueries({ queryKey: ['remediationPriorities'] });
+      setAssetForm({ name: '', ip: '', criticality: 'MEDIUM' });
       showSuccess('Activo agregado.');
     }
   });
@@ -116,6 +121,10 @@ export default function Audits() {
     mutationFn: findingsService.createFinding,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['assets', auditId] });
+      queryClient.invalidateQueries({ queryKey: ['comparisonAssets', auditId] });
+      queryClient.invalidateQueries({ queryKey: ['scanComparison'] });
+      queryClient.invalidateQueries({ queryKey: ['attackGraph'] });
+      queryClient.invalidateQueries({ queryKey: ['remediationPriorities'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recentFindings'] });
       setFindingForm((current) => ({ ...current, port: '', vulnerability: '' }));
@@ -130,6 +139,10 @@ export default function Audits() {
     onSuccess: (summary) => {
       setImportSummary(summary);
       queryClient.invalidateQueries({ queryKey: ['assets', auditId] });
+      queryClient.invalidateQueries({ queryKey: ['comparisonAssets', auditId] });
+      queryClient.invalidateQueries({ queryKey: ['scanComparison'] });
+      queryClient.invalidateQueries({ queryKey: ['attackGraph'] });
+      queryClient.invalidateQueries({ queryKey: ['remediationPriorities'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recentFindings'] });
       showSuccess('Importación finalizada.');
@@ -246,6 +259,18 @@ export default function Audits() {
             >
               <Input value={assetForm.name} onChange={(event) => setAssetForm({ ...assetForm, name: event.target.value })} placeholder="Nombre del activo" disabled={!auditId} />
               <Input value={assetForm.ip} onChange={(event) => setAssetForm({ ...assetForm, ip: event.target.value })} placeholder="IP (opcional)" disabled={!auditId} />
+              <select
+                className={selectClass}
+                value={assetForm.criticality}
+                onChange={(event) => setAssetForm({ ...assetForm, criticality: event.target.value })}
+                disabled={!auditId}
+                aria-label="Criticidad del activo"
+              >
+                <option value="LOW">Criticidad baja</option>
+                <option value="MEDIUM">Criticidad media</option>
+                <option value="HIGH">Criticidad alta</option>
+                <option value="CRITICAL">Criticidad crítica</option>
+              </select>
               <Button className="w-full" disabled={!auditId || createAsset.isPending}>
                 <PlusCircle /> Agregar activo
               </Button>
@@ -299,6 +324,8 @@ export default function Audits() {
           </form>
         </CardContent>
       </Card>
+
+      <ScanComparison audits={audits} defaultCurrentAuditId={auditId} />
 
       <Card>
         <CardHeader>
@@ -372,7 +399,7 @@ export default function Audits() {
             <div key={asset.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
               <div>
                 <p className="font-medium">{asset.name}</p>
-                <p className="text-muted-foreground">{asset.ip || 'Sin IP'} · {asset.type}</p>
+                <p className="text-muted-foreground">{asset.ip || 'Sin IP'} · {asset.type} · criticidad {asset.criticality?.toLowerCase() || 'media'}</p>
               </div>
               <div className="text-right">
                 <p className="font-medium">Riesgo {Math.round(asset.riskScore)}</p>

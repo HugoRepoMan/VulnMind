@@ -45,6 +45,28 @@ describe('import parser', () => {
     });
   });
 
+  test('preserves explicit attack-path evidence from JSON imports', () => {
+    const [record] = parseJsonImport(JSON.stringify({
+      asset: 'web-prod',
+      ip: '203.0.113.10',
+      port: 80,
+      service: 'http',
+      vulnerability: 'CVE-2026-0001',
+      evidence: 'Credential reuse confirmed by the scanner',
+      username: 'service-admin',
+      privilege: 'database-writer',
+      targetAsset: 'db-main',
+      exposure: 'external'
+    }));
+
+    expect(record.rawData).toMatchObject({
+      username: 'service-admin',
+      privilege: 'database-writer',
+      targetAsset: 'db-main',
+      exposure: 'external'
+    });
+  });
+
   test('extracts open Nmap ports, product data and CVEs', () => {
     const records = parseNmapImport(`
       <?xml version="1.0"?>

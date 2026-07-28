@@ -262,3 +262,83 @@ Verificación final:
 - Auditoría de dependencias de producción del backend: 0 vulnerabilidades.
 - React Router mantiene un aviso RSC no aplicable a esta SPA; se usa la versión
   publicada más reciente (7.18.1).
+
+## Grafo de rutas de ataque — normalización semántica y layout ELK
+
+Estado: completado el 27 de julio de 2026.
+
+Hallazgos de la inspección:
+
+- La vista anterior dibujaba un SVG propio y asignaba posiciones con
+  `x = columna * 280` e `y = fila * 115`; no utilizaba una librería de grafos.
+- La vulnerabilidad se identificaba globalmente como `vulnerability:<CVE>`.
+  Esto fusionaba hallazgos distintos y hacía que una CVE pareciera relacionada
+  con servicios sin evidencia correspondiente.
+- La consulta aceptaba proyecto sin auditoría, por lo que mezclaba activos de
+  escaneos diferentes. Ésta era la causa de repeticiones visuales como
+  `web-prod-01` y `gateway` al cambiar de contexto.
+- El resaltado consideraba activa cualquier arista cuyos extremos estuvieran en
+  la ruta, aunque esa arista no perteneciera a ella.
+- Las conexiones de correlación se añadían sobre terminales genéricos y el
+  layout manual producía cruces, retornos y grandes zonas vacías.
+- El parser JSON descartaba campos del paquete (`assetIp`, `protocol`,
+  `externalId`, `internetExposed`, `assetCriticality`, `relatedAsset`, título y
+  etiquetas), lo que impedía justificar varias relaciones.
+
+Correcciones de datos:
+
+- La API exige una auditoría y tanto activos como hallazgos se filtran por ella.
+- Se añadió una transformación pura basada en `Map`, con IDs estables:
+  `asset:<id>`, `service:<assetId>:<protocol>:<port>`,
+  `vulnerability:<findingId>:<vulnerabilityId>`,
+  `identity:<findingId>:<identity>` y `evidence:<findingId>`.
+- Las aristas usan `edge:<source>:<target>:<tipo>` y se deduplican junto con sus
+  nodos. Reprocesar el mismo conjunto es idempotente.
+- Activo-servicio sólo se crea por el puerto persistido; servicio-vulnerabilidad
+  y entidad-evidencia se crean dentro del hallazgo exacto. Las correlaciones
+  requieren IDs persistidos o etiquetas y activo relacionado explícitos.
+- La selección de ruta conserva `nodeIds` y `edgeIds`; ya no infiere una ruta
+  sólo porque dos nodos estén activos.
+- El parser conserva los campos reales del paquete sin introducir datos
+  simulados. El Motor Inteligente y sus análisis persistidos no se modificaron.
+
+Correcciones visuales:
+
+- React Flow reemplaza el SVG manual y ELK.js `layered` calcula el layout en
+  dirección `RIGHT`, con enrutamiento ortogonal, `NETWORK_SIMPLEX`,
+  `LAYER_SWEEP`, separación entre capas/nodos/aristas y padding.
+- El layout se recalcula al cambiar auditoría, filtros, rutas, conexiones o
+  grupos colapsados, y después ajusta la cámara con padding moderado.
+- Se añadieron vista general, selector y enfoque de rutas, cámara centrada,
+  opacidad contextual, zoom, desplazamiento, ajuste a pantalla, reorganización,
+  pantalla completa, minimapa para grafos grandes y controles.
+- Los activos pueden colapsarse; la ruta seleccionada permanece visible. Los
+  nodos tienen handles distribuidos, dimensiones por categoría, severidad en
+  insignia, tooltips, truncado y panel lateral con metadatos y relaciones.
+- Las aristas tienen flecha, etiqueta sólo al enfocarse, indicación ámbar para
+  reglas de correlación y resaltado por nodo o ruta.
+
+Verificación con `03a_hallazgos_array.json`:
+
+- El verificador oficial del paquete informó: todos los archivos válidos.
+- 5 registros aceptados, 0 rechazados.
+- 2 activos únicos, 16 nodos, 16 conexiones válidas y 11 rutas demostrables.
+- `web-prod-01` aparece una sola vez y `db-main` aparece una sola vez.
+- Servicios únicos: `web-prod-01/tcp/8080`, `web-prod-01/tcp/21` y
+  `db-main/tcp/5432`.
+- La única arista entrante de `CVE-2021-44228` desde un servicio es:
+  `web-prod-01/tcp/8080 → CVE-2021-44228`. FTP y PostgreSQL no se conectan con
+  Log4Shell.
+- La ruta crítica obtenida contiene:
+  `Internet → web-prod-01 → tcp/8080 → CVE-2021-44228 → credenciales
+  reutilizadas → db-main → tcp/5432 → CWE-250 → privilegios excesivos →
+  evidencia`.
+
+Pruebas y validación:
+
+- Backend: 37/37 pruebas, lint y build correctos.
+- Frontend: 7/7 pruebas, lint sin errores y build PWA correcto.
+- Las pruebas nuevas cubren deduplicación de activos, servicios y aristas;
+  aislamiento por auditoría; idempotencia; asociación exacta de Log4Shell;
+  ausencia de aristas inventadas; posiciones ELK válidas/no superpuestas;
+  resaltado exacto de rutas; colapso y ajuste a pantalla.

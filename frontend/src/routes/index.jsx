@@ -8,6 +8,8 @@ const Login = lazy(() => import('../pages/Login/index.jsx'));
 const Audits = lazy(() => import('../pages/Audits/index.jsx'));
 const Knowledge = lazy(() => import('../pages/Knowledge/index.jsx'));
 const Settings = lazy(() => import('../pages/Settings/index.jsx'));
+const AttackGraph = lazy(() => import('../pages/AttackGraph/index.jsx'));
+const Remediations = lazy(() => import('../pages/Remediations/index.jsx'));
 
 const page = (component) => (
   <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Cargando…</div>}>
@@ -59,6 +61,14 @@ const router = createBrowserRouter([
       {
         path: 'knowledge',
         element: page(<Knowledge />)
+      },
+      {
+        path: 'attack-graph',
+        element: page(<AttackGraph />)
+      },
+      {
+        path: 'remediations',
+        element: page(<Remediations />)
       },
       {
         path: '*',

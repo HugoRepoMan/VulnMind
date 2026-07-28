@@ -20,9 +20,11 @@ describe('knowledge engine modules', () => {
   });
 
   test('matches scalar and array knowledge conditions', () => {
-    const inference = { port: 443, service: 'https' };
+    const inference = { port: 443, service: 'https', tags: ['credential-reuse', 'external'] };
     expect(matchesCondition({ port: 443 }, inference)).toBe(true);
     expect(matchesCondition({ service: ['http', 'https'] }, inference)).toBe(true);
+    expect(matchesCondition({ tagsAny: ['database-exposure', 'credential-reuse'] }, inference)).toBe(true);
+    expect(matchesCondition({ tagsAll: ['credential-reuse', 'external'] }, inference)).toBe(true);
     expect(matchesCondition({ port: 22 }, inference)).toBe(false);
   });
 

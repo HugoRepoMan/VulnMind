@@ -9,7 +9,8 @@ const valueSchema = z.union([
 ]);
 const conditionSchema = z.record(z.string().trim().min(1).max(80), valueSchema)
   .refine((value) => Object.keys(value).length > 0, { message: 'Condition must contain a criterion' });
-const ruleSchema = z.object({
+export const ruleSchema = z.object({
+  code: z.string().trim().min(2).max(80).optional(),
   name: z.string().trim().min(3).max(160),
   type: z.string().trim().min(2).max(80),
   condition: conditionSchema,
@@ -18,6 +19,8 @@ const ruleSchema = z.object({
   owaspIds: idsSchema.optional(),
   cweIds: idsSchema.optional(),
   recommendation: z.string().trim().min(5).max(2000),
+  remediationEffort: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  dependencies: idsSchema.optional(),
   priority: z.coerce.number().int().min(-1000).max(1000).optional(),
   active: z.boolean().optional()
 });
@@ -29,6 +32,49 @@ const filtersSchema = z.object({
   type: z.string().trim().max(80).optional(),
   active: z.enum(['true', 'false']).optional()
 });
+const importSchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  dryRun: z.boolean().optional(),
+  content: z.string().min(1).refine(
+    (content) => Buffer.byteLength(content, 'utf8') <= 1024 * 1024,
+    { message: 'El archivo supera el límite de 1 MB' }
+  )
+});
+
+const inferRuleType = (condition) => {
+  if ('vulnerability' in condition) return 'VULNERABILITY';
+  if ('port' in condition || 'service' in condition) return 'PORT_SERVICE';
+  if ('tagsAny' in condition || 'tagsAll' in condition) return 'TAG';
+  return 'GENERIC';
+};
+
+const normalizeImportedRule = (value) => {
+  const rule = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return ({
+  ...(rule.code ? { code: String(rule.code).trim() } : {}),
+  name: rule.name,
+  type: rule.type || inferRuleType(rule.condition || {}),
+  condition: rule.condition,
+  baseRiskScore: rule.baseRiskScore ?? rule.baseRisk,
+  mitreIds: rule.mitreIds || [],
+  owaspIds: rule.owaspIds || [],
+  cweIds: rule.cweIds || [],
+  recommendation: rule.recommendation,
+  remediationEffort: rule.remediationEffort || 'MEDIUM',
+  dependencies: rule.dependencies || [],
+  priority: rule.priority ?? 0,
+  active: rule.active ?? true
+  });
+};
+
+const extractImportedRules = (parsed) => {
+  if (Array.isArray(parsed)) return { rules: parsed, source: 'array' };
+  if (Array.isArray(parsed.knowledgeRules)) return { rules: parsed.knowledgeRules, source: 'knowledgeRules' };
+  if (Array.isArray(parsed.rules)) return { rules: parsed.rules, source: 'rules' };
+  const error = new Error('El JSON debe ser una lista o contener knowledgeRules/rules');
+  error.statusCode = 400;
+  throw error;
+};
 
 const failNotFound = () => {
   const error = new Error('Knowledge rule not found');
@@ -92,6 +138,100 @@ export const createKnowledgeRule = async (req, res, next) => {
       return rule;
     });
     res.status(201).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const importKnowledgeRules = async (req, res, next) => {
+  try {
+    const payload = importSchema.parse(req.body);
+    let parsed;
+    try {
+      parsed = JSON.parse(payload.content);
+    } catch {
+      const error = new Error('El archivo no contiene JSON válido');
+      error.statusCode = 400;
+      throw error;
+    }
+    const extracted = extractImportedRules(parsed);
+    if (extracted.rules.length > 500) {
+      const error = new Error('El archivo supera el límite de 500 reglas');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const summary = {
+      filename: payload.filename,
+      source: extracted.source,
+      total: extracted.rules.length,
+      valid: 0,
+      created: 0,
+      updated: 0,
+      wouldCreate: 0,
+      wouldUpdate: 0,
+      rejected: 0,
+      dryRun: payload.dryRun ?? false,
+      errors: [],
+      warnings: []
+    };
+    if (parsed.purpose) {
+      summary.warnings.push(`Propósito informativo detectado: ${String(parsed.purpose).slice(0, 300)}`);
+    }
+    if (Array.isArray(parsed.correlationRules) && parsed.correlationRules.length) {
+      summary.warnings.push(
+        `${parsed.correlationRules.length} correlationRules no se importaron: pertenecen a una estructura de correlación distinta.`
+      );
+    }
+
+    for (const [index, rawRule] of extracted.rules.entries()) {
+      const validation = ruleSchema.safeParse(normalizeImportedRule(rawRule));
+      if (!validation.success) {
+        summary.rejected += 1;
+        summary.errors.push({
+          index: index + 1,
+          code: rawRule?.code || null,
+          message: validation.error.issues.map(({ path, message }) =>
+            `${path.join('.') || 'regla'}: ${message}`
+          ).join('; ')
+        });
+        continue;
+      }
+
+      const input = validation.data;
+      summary.valid += 1;
+      if (payload.dryRun) {
+        const existing = input.code
+          ? await prisma.knowledgeRule.findUnique({ where: { code: input.code } })
+          : await prisma.knowledgeRule.findFirst({ where: { name: input.name, type: input.type } });
+        summary[existing ? 'wouldUpdate' : 'wouldCreate'] += 1;
+        continue;
+      }
+      const result = await prisma.$transaction(async (tx) => {
+        const existing = input.code
+          ? await tx.knowledgeRule.findUnique({ where: { code: input.code } })
+          : await tx.knowledgeRule.findFirst({
+            where: { name: input.name, type: input.type }
+          });
+        const saved = existing
+          ? await tx.knowledgeRule.update({ where: { id: existing.id }, data: input })
+          : await tx.knowledgeRule.create({ data: input });
+        await logChange(
+          tx,
+          req,
+          existing ? 'KNOWLEDGE_RULE_IMPORTED_UPDATED' : 'KNOWLEDGE_RULE_IMPORTED_CREATED',
+          saved,
+          { filename: payload.filename, code: saved.code, index: index + 1 }
+        );
+        return existing ? 'updated' : 'created';
+      });
+      summary[result] += 1;
+    }
+
+    res.status(summary.rejected ? 207 : 200).json({
+      success: payload.dryRun ? summary.valid > 0 : summary.created + summary.updated > 0,
+      data: summary
+    });
   } catch (error) {
     next(error);
   }

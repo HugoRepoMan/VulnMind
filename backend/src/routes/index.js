@@ -9,11 +9,14 @@ import {
   listFindings, listProjects, updateAsset, updateAudit, updateFinding, updateProject
 } from '../controllers/operations.controller.js';
 import {
-  createKnowledgeRule, deleteKnowledgeRule, getKnowledgeRule, listKnowledgeRules,
+  createKnowledgeRule, deleteKnowledgeRule, getKnowledgeRule, importKnowledgeRules, listKnowledgeRules,
   updateKnowledgeRule
 } from '../controllers/knowledge.controller.js';
 import { importFindings } from '../controllers/import.controller.js';
 import { exportFindings } from '../controllers/export.controller.js';
+import { compareScans } from '../controllers/comparison.controller.js';
+import { getAttackGraph } from '../controllers/attack-graph.controller.js';
+import { getRemediationPriorities } from '../controllers/remediation.controller.js';
 import {
   getNotificationConfiguration,
   subscribeToNotifications,
@@ -60,11 +63,15 @@ router.delete('/findings/:findingId', requireAuth, adminOnly, deleteFinding);
 router.get('/knowledge/rules', requireAuth, canRead, listKnowledgeRules);
 router.get('/knowledge/rules/:ruleId', requireAuth, canRead, getKnowledgeRule);
 router.post('/knowledge/rules', requireAuth, adminOnly, createKnowledgeRule);
+router.post('/knowledge/rules/import', requireAuth, adminOnly, importKnowledgeRules);
 router.patch('/knowledge/rules/:ruleId', requireAuth, adminOnly, updateKnowledgeRule);
 router.delete('/knowledge/rules/:ruleId', requireAuth, adminOnly, deleteKnowledgeRule);
 
 router.post('/imports/findings', requireAuth, canWrite, importFindings);
 router.get('/exports/findings', requireAuth, canWrite, exportFindings);
+router.get('/comparisons/scans', requireAuth, canRead, compareScans);
+router.get('/attack-graph', requireAuth, canRead, getAttackGraph);
+router.get('/remediation-priorities', requireAuth, canRead, getRemediationPriorities);
 
 router.get(
   '/notifications/configuration',

@@ -373,6 +373,65 @@ describe('VulnMind PostgreSQL API integration', () => {
     expect(logs.every(({ userId }) => userId === ids.admin)).toBe(true);
   });
 
+  test('imports and updates JSON knowledge rules without duplicating their codes', async () => {
+    const payload = {
+      filename: 'integration-rules.json',
+      content: JSON.stringify({
+        knowledgeRules: [{
+          code: 'KB-INTEGRATION-JSON-001',
+          name: 'Imported credential reuse rule',
+          condition: { tagsAny: ['credential-reuse'] },
+          baseRisk: 60,
+          priority: 70,
+          recommendation: 'Rotate the imported integration credentials',
+          active: true
+        }],
+        correlationRules: [{ code: 'UNSUPPORTED-INTEGRATION' }]
+      })
+    };
+    const denied = await request(app)
+      .post('/api/knowledge/rules/import')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send(payload);
+    expect(denied.status).toBe(403);
+
+    const first = await request(app)
+      .post('/api/knowledge/rules/import')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(payload);
+    expect(first.status).toBe(200);
+    expect(first.body.data).toMatchObject({ created: 1, updated: 0, rejected: 0 });
+    expect(first.body.data.warnings[0]).toContain('correlationRules');
+
+    const second = await request(app)
+      .post('/api/knowledge/rules/import')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...payload,
+        content: JSON.stringify({
+          knowledgeRules: [{
+            ...JSON.parse(payload.content).knowledgeRules[0],
+            baseRisk: 65
+          }]
+        })
+      });
+    expect(second.status).toBe(200);
+    expect(second.body.data).toMatchObject({ created: 0, updated: 1 });
+    expect(await prisma.knowledgeRule.count({
+      where: { code: 'KB-INTEGRATION-JSON-001' }
+    })).toBe(1);
+    expect(await prisma.knowledgeRule.findUnique({
+      where: { code: 'KB-INTEGRATION-JSON-001' }
+    })).toMatchObject({
+      type: 'TAG',
+      baseRiskScore: 65
+    });
+
+    await prisma.knowledgeRule.delete({
+      where: { code: 'KB-INTEGRATION-JSON-001' }
+    });
+  });
+
   test('manages the complete project, audit and asset relationship through the API', async () => {
     const projectResponse = await request(app)
       .post('/api/projects')
@@ -551,10 +610,13 @@ describe('VulnMind PostgreSQL API integration', () => {
 
     expect(configuration.status).toBe(200);
     expect(configuration.body.data).toMatchObject({
-      enabled: false,
-      publicKey: null,
+      enabled: Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+      publicKey: process.env.VAPID_PUBLIC_KEY || null,
       subscribed: false
     });
-    expect(JSON.stringify(configuration.body)).not.toContain('PRIVATE');
+    expect(configuration.body.data.privateKey).toBeUndefined();
+    if (process.env.VAPID_PRIVATE_KEY) {
+      expect(JSON.stringify(configuration.body)).not.toContain(process.env.VAPID_PRIVATE_KEY);
+    }
   });
 });

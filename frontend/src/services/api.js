@@ -147,6 +147,13 @@ export const knowledgeService = {
   deleteRule: async (id) => {
     const response = await api.delete(`/knowledge/rules/${id}`);
     return response.data.data;
+  },
+  importRules: async (file) => {
+    const response = await api.post('/knowledge/rules/import', {
+      filename: file.name,
+      content: await file.text()
+    });
+    return response.data.data;
   }
 };
 
@@ -158,6 +165,33 @@ export const importService = {
       format,
       filename: file.name,
       content
+    });
+    return response.data.data;
+  }
+};
+
+export const scanComparisonService = {
+  compare: async (baselineAssetId, currentAssetId) => {
+    const response = await api.get('/comparisons/scans', {
+      params: { baselineAssetId, currentAssetId }
+    });
+    return response.data.data;
+  }
+};
+
+export const attackGraphService = {
+  getGraph: async (params = {}) => {
+    const response = await api.get('/attack-graph', {
+      params: Object.fromEntries(Object.entries(params).filter(([, value]) => value))
+    });
+    return response.data.data;
+  }
+};
+
+export const remediationService = {
+  getPriorities: async (params = {}) => {
+    const response = await api.get('/remediation-priorities', {
+      params: Object.fromEntries(Object.entries(params).filter(([, value]) => value))
     });
     return response.data.data;
   }
