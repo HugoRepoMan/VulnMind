@@ -8,7 +8,7 @@ import { prisma } from '../database/prisma.js';
 import { parseImport } from '../services/import-parser.service.js';
 import { processFindingPayload } from '../services/finding.service.js';
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const importSchema = z.object({
   auditId: z.string().trim().min(1),
   format: z.enum(['nmap', 'csv', 'json']),
@@ -19,7 +19,7 @@ const importSchema = z.object({
     context.addIssue({
       code: 'custom',
       path: ['content'],
-      message: 'El archivo supera el límite de 5 MB'
+      message: 'El archivo supera el límite de 3 MB'
     });
   }
 });

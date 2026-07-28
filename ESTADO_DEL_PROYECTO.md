@@ -331,7 +331,7 @@ prototipo y no participa en las rutas de producción.
 
 ## Trabajo implementado en el cierre
 
-- Importadores con límite de 5 MB/1.000 registros, rechazo de XML con entidades,
+- Importadores con límite de 3 MB/1.000 registros, rechazo de XML con entidades,
   detalle de errores y deduplicación de activos.
 - Cola Dexie aislada por usuario con borradores, estados, espera exponencial,
   sincronización al volver la red y resolución explícita de conflictos.

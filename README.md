@@ -66,7 +66,7 @@ docker compose down
 
 ## Importaciones
 
-Desde **Auditorías → Importar hallazgos** se aceptan archivos de hasta 5 MB y
+Desde **Auditorías → Importar hallazgos** se aceptan archivos de hasta 3 MB y
 1.000 registros.
 
 CSV admite estas columnas (también sus alias en español):
@@ -170,6 +170,13 @@ npm run build
 
 La imagen final del frontend usa Nginx y reenvía `/api` al servicio `backend`.
 Docker Compose selecciona la etapa `development` para conservar recarga en vivo.
+
+## Despliegue en Vercel
+
+El repositorio está preparado como dos proyectos Vercel independientes: uno con
+`backend` como directorio raíz y otro con `frontend`. La guía completa,
+incluyendo PostgreSQL, variables, migraciones y verificación, está en
+[`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
 
 ## Capturas y demostración
 

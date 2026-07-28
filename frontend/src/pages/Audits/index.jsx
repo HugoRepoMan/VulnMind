@@ -335,7 +335,7 @@ export default function Audits() {
         <CardHeader>
           <CardTitle>Importar hallazgos</CardTitle>
           <CardDescription>
-            Carga Nmap XML, CSV o JSON (máximo 5 MB y 1.000 registros). Los activos se asocian sin duplicarse.
+            Carga Nmap XML, CSV o JSON (máximo 3 MB y 1.000 registros). Los activos se asocian sin duplicarse.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

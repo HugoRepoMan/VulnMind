@@ -13,7 +13,9 @@ const app = express();
 
 app.use(cors());
 app.use(helmet());
-app.use(express.json({ limit: '6mb' }));
+// Una Vercel Function admite hasta 4,5 MB por petición. El margen evita que el
+// envoltorio JSON de una importación rebase el límite de la plataforma.
+app.use(express.json({ limit: '3mb' }));
 app.use(morgan('dev'));
 
 // Basic health check route
